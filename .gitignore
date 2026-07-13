@@ -1,0 +1,12 @@
+node_modules/
+server/node_modules/
+AdminUi/node_modules/
+
+.env
+server/.env
+AdminUi/.env
+
+dist/
+build/
+
+.DS_Store

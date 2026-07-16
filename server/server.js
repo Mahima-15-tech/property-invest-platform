@@ -35,7 +35,7 @@ app.use(cors({
     "http://localhost:5174",
     "http://localhost:5175",
     "http://localhost:5176",
-    "https://property-platform-six.vercel.app",
+    "https://property-invest-platform.vercel.app",
     "https://property-invest-gamma.vercel.app",
     "https://property-frontend-pi.vercel.app",
   ],

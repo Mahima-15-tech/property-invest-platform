@@ -32,6 +32,17 @@ router.put(
   uploadFields,
   property.updateProperty
 );
+<<<<<<< HEAD
+=======
+
+router.patch(
+  "/:id/featured",
+  protect,
+  authorize("admin"),
+  property.toggleFeatured
+);
+
+>>>>>>> backup-local
 router.delete("/:id", protect, authorize("admin"), property.deleteProperty);
 
 module.exports = router;

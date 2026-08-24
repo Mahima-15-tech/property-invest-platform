@@ -200,6 +200,7 @@ console.log("👉 propertyId:", req.body.propertyId);
     const ownershipPercent =
       (sharesNum / property.totalShares) * 100;
 
+<<<<<<< HEAD
     const investment = await Investment.create({
       userId: req.user.id,
       propertyId,
@@ -221,6 +222,36 @@ console.log("👉 propertyId:", req.body.propertyId);
         property.totalShares) * 100;
 
     await property.save();
+=======
+      const investment = await Investment.create({
+        userId: req.user.id,
+        propertyId,
+      
+        requestedShares: sharesNum,
+        requestedAmount: amount,
+      
+        shares: sharesNum,
+        amount: amount,
+      
+        pricePerShare: property.pricePerShare,
+        discount,
+        finalAmount,
+        ownershipPercent,
+      
+        status: "pending",
+      });
+
+    // 🔥 property update
+    // property.availableShares -= sharesNum;
+    // property.investedAmount += finalAmount;
+    // property.investors += 1;
+
+    // property.soldPercent =
+    //   ((property.totalShares - property.availableShares) /
+    //     property.totalShares) * 100;
+
+    // await property.save();
+>>>>>>> backup-local
 
     res.json({
       message: "Investment successful",

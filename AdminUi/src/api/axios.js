@@ -17,4 +17,9 @@ instance.interceptors.request.use((config) => {
 
 export default instance;
 
+<<<<<<< HEAD
 //https://property-platform.onrender.com/api
+=======
+//https://property-platform.onrender.com/api
+// https://property-invest-platform.onrender.com/api
+>>>>>>> backup-local

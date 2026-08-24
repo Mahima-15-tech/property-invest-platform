@@ -32,6 +32,7 @@ exports.getKycStatus = async (req, res) => {
 };
 
 
+<<<<<<< HEAD
 // 🔥 GET ALL INVESTORS (ADMIN)
 exports.getAllInvestors = async (req, res) => {
   try {
@@ -85,6 +86,65 @@ exports.getAllInvestors = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
+=======
+// GET ALL INVESTORS (ADMIN)
+exports.getAllInvestors = async (req, res) => {
+  try {
+
+    const investments = await Investment.find()
+      .populate("userId")
+      .populate("propertyId");
+
+    const map = new Map();
+
+    for (const inv of investments) {
+
+      if (!inv.userId) continue;
+
+      const id = inv.userId._id.toString();
+
+      if (!map.has(id)) {
+        map.set(id, {
+          _id: inv.userId._id,
+          name: inv.userId.name,
+          email: inv.userId.email,
+          phone: inv.userId.phone,
+          kycStatus: inv.userId.kycStatus,
+          joinDate: inv.userId.createdAt,
+          totalInvested: 0,
+          properties: new Set(),
+        });
+      }
+
+      const user = map.get(id);
+
+      user.totalInvested += inv.amount;
+      user.properties.add(inv.propertyId?._id.toString());
+    }
+
+    const data = [...map.values()].map((u) => ({
+      _id: u._id,
+      name: u.name,
+      email: u.email,
+      phone: u.phone,
+      kycStatus: u.kycStatus,
+      totalInvested: `₹${u.totalInvested}`,
+      properties: u.properties.size,
+      avgROI: "12%",
+      joinDate: u.joinDate,
+    }));
+
+    res.json({
+      data,
+      totalPages: 1,
+      currentPage: 1,
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      error: err.message,
+    });
+>>>>>>> backup-local
   }
 };
 
@@ -155,6 +215,7 @@ const kyc = await KYC.findOne({
 
 const PDFDocument = require("pdfkit");
 
+<<<<<<< HEAD
 
 
 exports.exportInvestorsPDF = async (req, res) => {
@@ -162,6 +223,54 @@ exports.exportInvestorsPDF = async (req, res) => {
     const investors = await User.find({ role: "investor" });
 
     const doc = new PDFDocument({ margin: 40, size: "A4" });
+=======
+exports.exportInvestorsPDF = async (req, res) => {
+  try {
+    const investments = await Investment.find()
+      .populate("userId")
+      .populate("propertyId");
+
+    // Group investments by user
+    const map = new Map();
+
+    investments.forEach((inv) => {
+      if (!inv.userId) return;
+
+      const id = inv.userId._id.toString();
+
+      if (!map.has(id)) {
+        map.set(id, {
+          _id: inv.userId._id,
+          name: inv.userId.name || "-",
+          email: inv.userId.email || "-",
+          phone: inv.userId.phone || "-",
+          kycStatus: inv.userId.kycStatus || "pending",
+          joinDate: inv.userId.createdAt,
+          totalInvested: 0,
+          properties: new Set(),
+          investments: [],
+        });
+      }
+
+      const user = map.get(id);
+
+      user.totalInvested += inv.amount || 0;
+
+      if (inv.propertyId) {
+        user.properties.add(inv.propertyId._id.toString());
+      }
+
+      user.investments.push(inv);
+    });
+
+    const investors = [...map.values()];
+
+    // PDF
+    const doc = new PDFDocument({
+      margin: 40,
+      size: "A4",
+    });
+>>>>>>> backup-local
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
@@ -171,12 +280,17 @@ exports.exportInvestorsPDF = async (req, res) => {
 
     doc.pipe(res);
 
+<<<<<<< HEAD
     // 🔥 HEADER (Premium)
+=======
+    // Header
+>>>>>>> backup-local
     doc
       .rect(0, 0, doc.page.width, 70)
       .fill("#0f172a");
 
     doc
+<<<<<<< HEAD
       .fillColor("#fff")
       .fontSize(18)
       .text("RealEstateHub - Investor Report", 40, 25);
@@ -241,6 +355,73 @@ exports.exportInvestorsPDF = async (req, res) => {
     doc.end();
   } catch (err) {
     res.status(500).json({ error: err.message });
+=======
+      .fillColor("white")
+      .fontSize(20)
+      .text("Investor Report", 40, 25);
+
+    doc.moveDown(3);
+
+    investors.forEach((inv, index) => {
+      if (index > 0 && doc.y > 650) {
+        doc.addPage();
+      }
+
+      doc
+        .fillColor("#000")
+        .fontSize(15)
+        .text(inv.name);
+
+      doc.fontSize(11);
+
+      doc.text(`Email : ${inv.email}`);
+      doc.text(`Phone : ${inv.phone}`);
+      doc.text(`KYC : ${inv.kycStatus}`);
+      doc.text(`Total Investment : ₹${inv.totalInvested}`);
+      doc.text(`Properties : ${inv.properties.size}`);
+
+      const avgROI =
+        inv.investments.length > 0
+          ? (10 + Math.random() * 5).toFixed(1) + "%"
+          : "0%";
+
+      doc.text(`Average ROI : ${avgROI}`);
+
+      doc.moveDown();
+
+      doc.fontSize(12).fillColor("#1d4ed8").text("Investments");
+
+      doc.fillColor("#000").fontSize(10);
+
+      inv.investments.forEach((item) => {
+        doc.text(
+          `• ${item.propertyId?.name || "Property"} | Shares: ${
+            item.shares
+          } | ₹${item.amount}`
+        );
+      });
+
+      doc.moveDown();
+
+      doc
+        .moveTo(40, doc.y)
+        .lineTo(550, doc.y)
+        .strokeColor("#d1d5db")
+        .stroke();
+
+      doc.moveDown();
+    });
+
+    doc.end();
+  } catch (err) {
+    console.error(err);
+
+    if (!res.headersSent) {
+      return res.status(500).json({
+        error: err.message,
+      });
+    }
+>>>>>>> backup-local
   }
 };
 

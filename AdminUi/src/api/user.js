@@ -13,4 +13,13 @@ export const updateKyc = (id, status) =>
     responseType: "blob",
   });
 
+<<<<<<< HEAD
+=======
+
+
+export const getUsers = () => {
+  return axios.get("/admin/users");
+};
+
+>>>>>>> backup-local
   export const getUsersList = () => axios.get("/user/list");

@@ -15,6 +15,11 @@ import { NotFound } from "./pages/not-found";
 import { PropertyView } from "./pages/property-view";
 import { PropertyEdit } from "./pages/property-edit";
 import { Login } from "./pages/login";
+<<<<<<< HEAD
+=======
+import ExitRequests from "./pages/exit-requests";
+import { UsersPage } from "./pages/users";
+>>>>>>> backup-local
 
 export const router = createBrowserRouter([
   {
@@ -35,6 +40,10 @@ export const router = createBrowserRouter([
       { path: "properties/edit/:id", element: <PropertyEdit /> },
       { path: "investors", element: <Investors /> },
       { path: "brokers", element: <Brokers /> },
+<<<<<<< HEAD
+=======
+      { path: "exit-requests", element: <ExitRequests /> },
+>>>>>>> backup-local
       { path: "transactions", element: <Transactions /> },
       { path: "reports", element: <Reports /> },
       { path: "cms", element: <CMS /> },
@@ -42,6 +51,11 @@ export const router = createBrowserRouter([
       { path: "settings", element: <Settings /> },
       { path: "audit-logs", element: <AuditLogs /> },
       { path: "*", element: <NotFound /> },
+<<<<<<< HEAD
+=======
+      { path: "users", element: <UsersPage /> }, 
+      
+>>>>>>> backup-local
     ],
   },
 ]);

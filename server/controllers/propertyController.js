@@ -175,7 +175,11 @@ if (soldPercent >= 100) {
           roi: p.roi,
           targetROI: p.targetROI,
 
+<<<<<<< HEAD
           fundedPercent: p.soldPercent,
+=======
+          fundedPercent: Number((p.soldPercent || 0).toFixed(2)),
+>>>>>>> backup-local
           sharesLeft: p.availableShares,
           investors: p.investors,
 
@@ -204,6 +208,18 @@ if (soldPercent >= 100) {
           }
         });
 
+<<<<<<< HEAD
+=======
+
+        console.log({
+          property: p.name,
+          soldShares: p.soldShares,
+          availableShares: p.availableShares,
+          totalShares: p.totalShares,
+          soldPercent: p.soldPercent,
+        });
+
+>>>>>>> backup-local
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
@@ -249,6 +265,7 @@ if (soldPercent >= 100) {
         res.status(500).json({ error: error.message });
       }
     };
+<<<<<<< HEAD
 
     exports.updateProperty = async (req,res)=>{
 
@@ -305,6 +322,61 @@ if (soldPercent >= 100) {
       
       }
 
+=======
+    exports.updateProperty = async (req, res) => {
+      try {
+        const property = await Property.findById(req.params.id);
+    
+        if (!property) {
+          return res.status(404).json({ message: "Property not found" });
+        }
+    
+        // Nayi uploaded files
+        const imageFiles = req.files?.images || [];
+        const newUploadedUrls = imageFiles.map((file) => file.path);
+    
+        // Front-end se bachi hui existing images ka array
+        let existingImages = req.body.existingImages || [];
+        
+        // Agar single string aati h (1 image bacchi ho toh array banao)
+        if (typeof existingImages === "string") {
+          existingImages = [existingImages];
+        }
+    
+        // Merge: Existing kept images + Newly uploaded images
+        const updatedImages = [...existingImages, ...newUploadedUrls];
+    
+        // Property Fields update
+        property.name = req.body.name ?? property.name;
+        property.type = req.body.type ?? property.type;
+        property.size = req.body.size ?? property.size;
+        property.description = req.body.description ?? property.description;
+    
+        property.location = {
+          city: req.body.city ?? property.location?.city,
+          state: req.body.state ?? property.location?.state,
+          address: req.body.address ?? property.location?.address,
+        };
+    
+        property.totalValue = req.body.totalValue ?? property.totalValue;
+        property.totalShares = req.body.totalShares ?? property.totalShares;
+        property.roi = req.body.expectedROI ?? property.roi;
+        property.duration = req.body.duration ?? property.duration;
+    
+        if (typeof req.body.isFeatured !== "undefined") {
+          property.isFeatured = req.body.isFeatured === "true" || req.body.isFeatured === true;
+        }
+    
+        property.media.images = updatedImages;
+    
+        await property.save();
+    
+        res.status(200).json({ message: "Property updated successfully", property });
+      } catch (err) {
+        res.status(500).json({ error: err.message });
+      }
+    };
+>>>>>>> backup-local
       exports.getPropertiesList = async (req, res) => {
         const properties = await Property.find().select("_id name");
         res.json(properties);
@@ -342,6 +414,7 @@ if (soldPercent >= 100) {
             limit = 6,
           } = req.query;
       
+<<<<<<< HEAD
           let query = { isPublished: true };
       
           // 🔍 SEARCH
@@ -397,11 +470,158 @@ query.$or = cities.map(c => ({
           const total = await Property.countDocuments(query);
       
           // 🎯 UI READY RESPONSE
+=======
+          let query = {
+            isPublished: true,
+          };
+      
+          query.$and = [];
+      
+          // ===========================
+          // SEARCH
+          // ===========================
+          if (search) {
+            query.$and.push({
+              $or: [
+                {
+                  name: {
+                    $regex: search,
+                    $options: "i",
+                  },
+                },
+                {
+                  "location.city": {
+                    $regex: search,
+                    $options: "i",
+                  },
+                },
+                {
+                  type: {
+                    $regex: search,
+                    $options: "i",
+                  },
+                },
+              ],
+            });
+          }
+      
+          // ===========================
+          // CITY
+          // ===========================
+          if (city) {
+            const cities = Array.isArray(city) ? city : [city];
+      
+            query.$and.push({
+              "location.city": {
+                $in: cities.map((c) => new RegExp(`^${c.trim()}$`, "i")),
+              },
+            });
+          }
+      
+          // ===========================
+          // PROPERTY TYPE
+          // ===========================
+          if (type) {
+            query.type = type;
+          }
+      
+          // ===========================
+          // ROI
+          // ===========================
+          if (minROI || maxROI) {
+            query.roi = {};
+      
+            if (minROI) {
+              query.roi.$gte = Number(minROI);
+            }
+      
+            if (maxROI) {
+              query.roi.$lte = Number(maxROI);
+            }
+          }
+      
+          // ===========================
+          // PRICE
+          // ===========================
+          if (minPrice || maxPrice) {
+            query.totalValue = {};
+      
+            if (minPrice) {
+              query.totalValue.$gte = Number(minPrice);
+            }
+      
+            if (maxPrice) {
+              query.totalValue.$lte = Number(maxPrice);
+            }
+          }
+      
+          // ===========================
+          // STATUS
+          // ===========================
+          if (status) {
+            query.status = status;
+          }
+      
+          // remove empty $and
+          if (query.$and.length === 0) {
+            delete query.$and;
+          }
+      
+          // ===========================
+          // SORT
+          // ===========================
+          let sortOption = {
+            createdAt: -1,
+          };
+      
+          if (sort === "roi") {
+            sortOption = {
+              roi: -1,
+            };
+          }
+      
+          if (sort === "price") {
+            sortOption = {
+              pricePerShare: 1,
+            };
+          }
+      
+          if (sort === "funded") {
+            sortOption = {
+              soldPercent: -1,
+            };
+          }
+      
+          // ===========================
+          // PAGINATION
+          // ===========================
+          const skip = (Number(page) - 1) * Number(limit);
+      
+          console.log("Query =>", query);
+
+const properties = await Property.find(query)
+  .sort(sortOption)
+  .skip(skip)
+  .limit(Number(limit));
+
+console.log("Found =>", properties.length);
+
+console.log(
+  properties.map((p) => ({
+    name: p.name,
+    published: p.isPublished,
+  }))
+);
+      
+          const total = await Property.countDocuments(query);
+      
+>>>>>>> backup-local
           const formatted = properties.map((p) => ({
             id: p._id,
             name: p.name,
             location: p.location,
             city: p.location?.city,
+<<<<<<< HEAD
             image: p.media?.images?.[0] || null,
             roi: p.roi,
             totalValue: p.totalValue,
@@ -409,6 +629,20 @@ query.$or = cities.map(c => ({
             fundedPercent: p.soldPercent,
             type: p.type,
             status: p.status,
+=======
+            image: p.media?.images?.[0] || "",
+            roi: p.roi,
+            totalValue: p.totalValue,
+            sharePrice: p.pricePerShare,
+            totalShares: p.totalShares,
+            availableShares: p.availableShares,
+            fundedPercent: Number((p.soldPercent || 0).toFixed(2)),
+            soldShares: p.soldShares,
+            soldPercent: p.soldPercent,
+            type: p.type,
+            status: p.status,
+            locking_period: p.duration,
+>>>>>>> backup-local
           }));
       
           res.json({
@@ -419,9 +653,18 @@ query.$or = cities.map(c => ({
               pages: Math.ceil(total / limit),
             },
           });
+<<<<<<< HEAD
       
         } catch (error) {
           res.status(500).json({ error: error.message });
+=======
+        } catch (error) {
+          console.log(error);
+      
+          res.status(500).json({
+            error: error.message,
+          });
+>>>>>>> backup-local
         }
       };
 
@@ -442,4 +685,51 @@ query.$or = cities.map(c => ({
         } catch (error) {
           res.status(500).json({ error: error.message });
         }
+<<<<<<< HEAD
+=======
+      };
+
+
+      exports.toggleFeatured = async (req, res) => {
+        try {
+          const { id } = req.params;
+          const { isFeatured } = req.body;
+      
+          const property = await Property.findById(id);
+      
+          if (!property) {
+            return res.status(404).json({
+              message: "Property not found",
+            });
+          }
+      
+          // Maximum 3 featured properties
+          if (isFeatured) {
+            const count = await Property.countDocuments({
+              isFeatured: true,
+            });
+      
+            if (count >= 3) {
+              return res.status(400).json({
+                message: "Maximum 3 featured properties allowed.",
+              });
+            }
+          }
+      
+          property.isFeatured = isFeatured;
+          
+      
+          await property.save();
+      
+          res.json({
+            message: "Featured updated successfully",
+            property,
+          });
+      
+        } catch (err) {
+          res.status(500).json({
+            error: err.message,
+          });
+        }
+>>>>>>> backup-local
       };

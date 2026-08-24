@@ -18,7 +18,22 @@ exports.getPortfolio = async (req, res) => {
     let totalShares = 0;
     let totalRental = 0;
 
+<<<<<<< HEAD
     const items = investments.map((inv) => {
+=======
+    console.log("Investments:");
+
+investments.forEach((inv) => {
+  console.log({
+    investmentId: inv._id,
+    propertyId: inv.propertyId,
+  });
+});
+
+    const validInvestments = investments.filter(inv => inv.propertyId);
+
+    const items = validInvestments.map((inv) => {
+>>>>>>> backup-local
       const p = inv.propertyId;
 
       const priceNow = p.currentPricePerShare || p.pricePerShare || 0;
@@ -31,6 +46,16 @@ exports.getPortfolio = async (req, res) => {
         ? (inv.shares / p.totalShares) * 100
         : 0;
 
+<<<<<<< HEAD
+=======
+        console.log("========== PORTFOLIO DEBUG ==========");
+console.log("Property:", p.name);
+console.log("Shares Purchased:", inv.shares);
+console.log("Total Shares:", p.totalShares);
+console.log("Ownership:", ownership);
+console.log("=====================================");
+
+>>>>>>> backup-local
       const rentalYield = p.rentalYield || 0;
       const rentalIncome = (invested * rentalYield) / 100;
 
@@ -40,6 +65,10 @@ exports.getPortfolio = async (req, res) => {
       totalRental += rentalIncome;
 
       return {
+<<<<<<< HEAD
+=======
+        investmentId: inv._id,
+>>>>>>> backup-local
         propertyId: p._id,
         propertyName: p.name,
         location: p.location?.city,
@@ -58,7 +87,11 @@ exports.getPortfolio = async (req, res) => {
     });
 
     const expectedReturn = totalInvested
+<<<<<<< HEAD
   ? investments.reduce((sum, inv) => {
+=======
+  ? validInvestments.reduce((sum, inv) => {
+>>>>>>> backup-local
       const roi = inv.propertyId?.roi || 0;
       const invested =
         inv.amount ||
@@ -151,6 +184,7 @@ exports.getDocuments = async (req, res) => {
 
   const docs = [];
 
+<<<<<<< HEAD
   // 🔥 property docs
   investments.forEach(inv => {
     inv.propertyId.media?.documents?.forEach(doc => {
@@ -162,6 +196,25 @@ exports.getDocuments = async (req, res) => {
       });
     });
   });
+=======
+  //  property docs
+  investments.forEach((inv) => {
+
+    if (!inv.propertyId) return;
+
+    inv.propertyId.media?.documents?.forEach((doc) => {
+
+        docs.push({
+            type: "property",
+            property: inv.propertyId.name,
+            name: doc.name,
+            url: doc.url,
+        });
+
+    });
+
+});
+>>>>>>> backup-local
 
   // 🔥 KYC docs
   if (kyc) {
@@ -197,6 +250,7 @@ exports.getDocuments = async (req, res) => {
 };
 
 exports.createExitRequest = async (req, res) => {
+<<<<<<< HEAD
   const { propertyId } = req.body;
 
   const exit = await Exit.create({
@@ -208,6 +262,83 @@ exports.createExitRequest = async (req, res) => {
     message: "Exit request submitted",
     exit,
   });
+=======
+  try {
+    const { investmentId, shares } = req.body;
+
+    if (!investmentId || !shares) {
+      return res.status(400).json({
+        message: "Investment ID and shares are required",
+      });
+    }
+
+    const investment = await Investment.findOne({
+      _id: investmentId,
+      userId: req.user.id,
+      status: "approved",
+    });
+
+    if (!investment) {
+      return res.status(404).json({
+        message: "Investment not found",
+      });
+    }
+
+    // User requested more shares than owned
+    if (Number(shares) > investment.shares) {
+      return res.status(400).json({
+        message: "You cannot exit more shares than you own",
+      });
+    }
+
+    if (Number(shares) <= 0) {
+      return res.status(400).json({
+        message: "Invalid share quantity",
+      });
+    }
+
+    // Prevent duplicate pending request
+    const pendingExit = await Exit.findOne({
+      investmentId: investment._id,
+      status: "pending",
+    });
+
+    if (pendingExit) {
+      return res.status(400).json({
+        message: "Exit request already pending for this investment",
+      });
+    }
+
+    // Calculate amount according to investment price
+    const pricePerShare = investment.amount / investment.shares;
+
+    const exitAmount = Number(shares) * pricePerShare;
+
+    const exit = await Exit.create({
+      userId: req.user.id,
+
+      investmentId: investment._id,
+
+      propertyId: investment.propertyId,
+
+      shares: Number(shares),
+
+      amount: exitAmount,
+
+      status: "pending",
+    });
+
+    res.json({
+      message: "Exit request submitted successfully",
+      exit,
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      error: err.message,
+    });
+  }
+>>>>>>> backup-local
 };
 
 exports.getCompletedInvestments = async (req, res) => {

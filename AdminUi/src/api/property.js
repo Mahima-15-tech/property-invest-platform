@@ -16,17 +16,11 @@ export const getPropertyById = (id) => {
   return axios.get(`/properties/${id}`);
 };
 
-<<<<<<< HEAD
-
-=======
->>>>>>> backup-local
 // UPDATE
 export const updateProperty = (id, data) => {
   return axios.put(`/properties/${id}`, data);
 };
 
-<<<<<<< HEAD
-=======
 // ✅ ADD THIS
 export const toggleFeatured = (id, isFeatured) => {
   return axios.patch(`/properties/${id}/featured`, {
@@ -34,7 +28,6 @@ export const toggleFeatured = (id, isFeatured) => {
   });
 };
 
->>>>>>> backup-local
 export const getPropertiesList = () => axios.get("/properties/list");
 
 // DELETE

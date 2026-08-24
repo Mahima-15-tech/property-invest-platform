@@ -29,13 +29,6 @@ const propertySchema = new mongoose.Schema(
       default: 0,
     },
     
-<<<<<<< HEAD
-    soldPercent: {
-      type: Number,
-      default: 0,
-    },
-=======
->>>>>>> backup-local
     
     status: {
       type: String,
@@ -52,15 +45,7 @@ const propertySchema = new mongoose.Schema(
     appreciation: Number,
     duration: Number,
 
-<<<<<<< HEAD
-    // 📊 STATUS
-    status: {
-      type: String,
-      default: "funding",
-    },
-=======
    
->>>>>>> backup-local
 
     soldPercent: {
       type: Number,
@@ -119,11 +104,7 @@ const propertySchema = new mongoose.Schema(
       ],
     },
 
-<<<<<<< HEAD
-    currentPricePerShare: Number,
-=======
    
->>>>>>> backup-local
 
 
     // 👤 OWNER

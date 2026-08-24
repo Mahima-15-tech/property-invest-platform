@@ -1,9 +1,5 @@
 import React, { useState } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
-<<<<<<< HEAD
-
-=======
->>>>>>> backup-local
 import {
   LayoutDashboard,
   Building2,
@@ -18,18 +14,11 @@ import {
   Menu,
   X,
   Search,
-<<<<<<< HEAD
-  Plus,
-  User,
-  LogOut,
-  ChevronLeft,
-=======
   LogOut,
   ChevronLeft,
   ShieldCheck,
   Sparkles,
   Command,
->>>>>>> backup-local
 } from "lucide-react";
 
 import { Button } from "./ui/button";
@@ -50,13 +39,6 @@ const navigation = [
   { name: "Investors", href: "/investors", icon: Users },
   { name: "Brokers", href: "/brokers", icon: Briefcase },
   { name: "Transactions", href: "/transactions", icon: CreditCard },
-<<<<<<< HEAD
-  { name: "Reports", href: "/reports", icon: BarChart3 },
-  { name: "CMS", href: "/cms", icon: FileText },
-  { name: "Notifications", href: "/notifications", icon: Bell },
-  { name: "Settings", href: "/settings", icon: Settings },
-  { name: "Audit Logs", href: "/audit-logs", icon: ClipboardList },
-=======
   { name: "Exit Requests", href: "/exit-requests", icon: LogOut },
   { name: "Reports", href: "/reports", icon: BarChart3 },
   { name: "CMS", href: "/cms", icon: FileText },
@@ -64,7 +46,6 @@ const navigation = [
   { name: "Audit Logs", href: "/audit-logs", icon: ClipboardList },
   { name: "Users Management", href: "/users", icon: ShieldCheck },
   { name: "Settings", href: "/settings", icon: Settings },
->>>>>>> backup-local
 ];
 
 export function RootLayout() {
@@ -78,17 +59,6 @@ export function RootLayout() {
   };
 
   return (
-<<<<<<< HEAD
-    <div className="flex h-screen overflow-hidden bg-background">
-
-      {/* Sidebar */}
-      <aside className={`${sidebarCollapsed ? "w-20" : "w-64"} hidden md:flex flex-col bg-card border-r transition-all`}>
-
-        {/* Logo */}
-        <div className="h-16 flex items-center justify-between px-6 border-b">
-          {!sidebarCollapsed && (
-            <h1 className="text-xl font-semibold text-primary">RealEstateHub</h1>
-=======
     <div className="flex h-screen overflow-hidden bg-slate-950/2 font-sans antialiased text-slate-900 selection:bg-slate-900 selection:text-white">
       
       {/* ================= DESKTOP SIDEBAR ================= */}
@@ -117,22 +87,12 @@ export function RootLayout() {
             <div className="mx-auto w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-md">
               <Sparkles className="w-4 h-4" />
             </div>
->>>>>>> backup-local
           )}
 
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-<<<<<<< HEAD
-          >
-            {sidebarCollapsed ? <Menu className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
-          </Button>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-=======
             className="text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl h-8 w-8 transition"
           >
             <ChevronLeft
@@ -145,7 +105,6 @@ export function RootLayout() {
 
         {/* NAVIGATION LIST */}
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1.5 scrollbar-thin scrollbar-thumb-slate-800">
->>>>>>> backup-local
           {navigation.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
@@ -154,20 +113,6 @@ export function RootLayout() {
               <Link
                 key={item.name}
                 to={item.href}
-<<<<<<< HEAD
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg transition relative ${
-                  active
-                    ? "bg-primary text-primary-foreground"
-                    : "text-foreground hover:bg-accent"
-                }`}
-              >
-                {active && (
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r" />
-                )}
-
-                <Icon className={`h-5 w-5 ${sidebarCollapsed ? "mx-auto" : ""}`} />
-                {!sidebarCollapsed && <span>{item.name}</span>}
-=======
                 title={sidebarCollapsed ? item.name : undefined}
                 className={`group relative flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
                   active
@@ -196,27 +141,10 @@ export function RootLayout() {
                 {active && !sidebarCollapsed && (
                   <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-white rounded-l-full shadow-sm" />
                 )}
->>>>>>> backup-local
               </Link>
             );
           })}
         </nav>
-<<<<<<< HEAD
-      </aside>
-
-      {/* Mobile Sidebar */}
-      {mobileSidebarOpen && (
-        <div
-          className="md:hidden fixed inset-0 z-50 bg-black/50"
-          onClick={() => setMobileSidebarOpen(false)}
-        >
-          <aside
-            className="w-64 h-full bg-card border-r"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="h-16 flex items-center justify-between px-6 border-b">
-              <h1 className="text-xl font-semibold text-primary">RealEstateHub</h1>
-=======
 
         {/* BOTTOM USER PROFILE CARD */}
         {!sidebarCollapsed && (
@@ -257,26 +185,18 @@ export function RootLayout() {
                   PropInvest
                 </span>
               </div>
->>>>>>> backup-local
 
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setMobileSidebarOpen(false)}
-<<<<<<< HEAD
-=======
                 className="text-slate-400 hover:text-white rounded-xl"
->>>>>>> backup-local
               >
                 <X className="h-5 w-5" />
               </Button>
             </div>
 
-<<<<<<< HEAD
-            <nav className="p-4 space-y-1">
-=======
             <nav className="flex-1 overflow-y-auto p-4 space-y-1.5">
->>>>>>> backup-local
               {navigation.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.href);
@@ -286,15 +206,6 @@ export function RootLayout() {
                     key={item.name}
                     to={item.href}
                     onClick={() => setMobileSidebarOpen(false)}
-<<<<<<< HEAD
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg ${
-                      active
-                        ? "bg-primary text-primary-foreground"
-                        : "text-foreground hover:bg-accent"
-                    }`}
-                  >
-                    <Icon className="h-5 w-5" />
-=======
                     className={`flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all ${
                       active
                         ? "bg-blue-600 text-white shadow-lg shadow-blue-600/30"
@@ -302,7 +213,6 @@ export function RootLayout() {
                     }`}
                   >
                     <Icon className="h-4 w-4" />
->>>>>>> backup-local
                     <span>{item.name}</span>
                   </Link>
                 );
@@ -312,19 +222,6 @@ export function RootLayout() {
         </div>
       )}
 
-<<<<<<< HEAD
-      {/* Main */}
-      <div className="flex-1 flex flex-col">
-
-        {/* Header */}
-        <header className="h-16 bg-card border-b flex items-center justify-between px-6">
-
-          <div className="flex items-center gap-4 flex-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden"
-=======
       {/* ================= MAIN CONTENT WRAPPER ================= */}
       <div className="flex-1 flex flex-col min-w-0 bg-slate-50/50">
 
@@ -336,51 +233,11 @@ export function RootLayout() {
               variant="ghost"
               size="icon"
               className="md:hidden text-slate-600 hover:bg-slate-100 rounded-xl"
->>>>>>> backup-local
               onClick={() => setMobileSidebarOpen(true)}
             >
               <Menu className="h-5 w-5" />
             </Button>
 
-<<<<<<< HEAD
-            {/* Search */}
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search properties..."
-                className="pl-10 bg-accent/50"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-
-              {/* <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">Create Property</span>
-              </Button> */}
-
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              <Badge className="absolute -top-1 -right-1 text-xs">3</Badge>
-            </Button>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="gap-2">
-                  <User className="h-5 w-5" />
-                  <span className="hidden sm:inline">Admin</span>
-                </Button>
-              </DropdownMenuTrigger>
-
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem>Profile</DropdownMenuItem>
-                <DropdownMenuItem>Settings</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive">
-                  Logout
-=======
             {/* SEARCH INPUT */}
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -451,7 +308,6 @@ export function RootLayout() {
                 <DropdownMenuSeparator className="bg-slate-100" />
                 <DropdownMenuItem className="rounded-xl text-xs text-red-600 focus:bg-red-50 focus:text-red-700 cursor-pointer py-2 font-semibold">
                   Sign Out
->>>>>>> backup-local
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -459,17 +315,11 @@ export function RootLayout() {
           </div>
         </header>
 
-<<<<<<< HEAD
-        {/* Content */}
-        <main className="flex-1 overflow-y-auto p-6">
-          <Outlet />
-=======
         {/* MAIN BODY AREA */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-thin scrollbar-thumb-slate-200">
           <div className="max-w-7xl mx-auto space-y-6">
             <Outlet />
           </div>
->>>>>>> backup-local
         </main>
       </div>
     </div>

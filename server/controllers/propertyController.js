@@ -175,11 +175,7 @@ if (soldPercent >= 100) {
           roi: p.roi,
           targetROI: p.targetROI,
 
-<<<<<<< HEAD
-          fundedPercent: p.soldPercent,
-=======
           fundedPercent: Number((p.soldPercent || 0).toFixed(2)),
->>>>>>> backup-local
           sharesLeft: p.availableShares,
           investors: p.investors,
 
@@ -208,8 +204,6 @@ if (soldPercent >= 100) {
           }
         });
 
-<<<<<<< HEAD
-=======
 
         console.log({
           property: p.name,
@@ -219,7 +213,6 @@ if (soldPercent >= 100) {
           soldPercent: p.soldPercent,
         });
 
->>>>>>> backup-local
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
@@ -265,64 +258,6 @@ if (soldPercent >= 100) {
         res.status(500).json({ error: error.message });
       }
     };
-<<<<<<< HEAD
-
-    exports.updateProperty = async (req,res)=>{
-
-      try{
-      
-      const property=await Property.findById(req.params.id);
-      
-      if(!property){
-      return res.status(404).json({
-      message:"Property not found"
-      });
-      }
-      
-      const imageFiles=req.files?.images || [];
-      
-      let imageUrls=property.media.images;
-      
-      if(imageFiles.length){
-      
-      imageUrls=imageFiles.map(file=>file.path);
-      
-      }
-      
-      property.name=req.body.name;
-      property.type=req.body.type;
-      property.size=req.body.size;
-      property.description=req.body.description;
-      
-      property.location.city=req.body.city;
-      property.location.state=req.body.state;
-      property.location.address=req.body.address;
-      
-      property.totalValue=req.body.totalValue;
-      property.totalShares=req.body.totalShares;
-      
-      property.roi=req.body.expectedROI;
-      
-      property.duration=req.body.duration;
-      
-      property.media.images=imageUrls;
-      
-      await property.save();
-      
-      res.json(property);
-      
-      }
-      catch(err){
-      
-      res.status(500).json({
-      error:err.message
-      });
-      
-      }
-      
-      }
-
-=======
     exports.updateProperty = async (req, res) => {
       try {
         const property = await Property.findById(req.params.id);
@@ -376,7 +311,6 @@ if (soldPercent >= 100) {
         res.status(500).json({ error: err.message });
       }
     };
->>>>>>> backup-local
       exports.getPropertiesList = async (req, res) => {
         const properties = await Property.find().select("_id name");
         res.json(properties);
@@ -414,63 +348,6 @@ if (soldPercent >= 100) {
             limit = 6,
           } = req.query;
       
-<<<<<<< HEAD
-          let query = { isPublished: true };
-      
-          // 🔍 SEARCH
-          if (search) {
-            query.$or = [
-              { name: { $regex: search, $options: "i" } },
-              { "location.city": { $regex: search, $options: "i" } },
-            ];
-          }
-      
-          // 📍 CITY FILTER
-          if (city) {
-            const cities = Array.isArray(city) ? city : [city];
-
-query.$or = cities.map(c => ({
-  "location.city": { $regex: `^${c.trim()}$`, $options: "i" }
-}));
-          }
-      
-          // 🏢 TYPE FILTER
-          if (type) query.type = type;
-      
-          // 📊 ROI FILTER
-          if (minROI || maxROI) {
-            query.roi = {};
-            if (minROI) query.roi.$gte = Number(minROI);
-            if (maxROI) query.roi.$lte = Number(maxROI);
-          }
-      
-          // 💰 PRICE FILTER
-          if (minPrice || maxPrice) {
-            query.totalValue = {};
-            if (minPrice) query.totalValue.$gte = Number(minPrice);
-            if (maxPrice) query.totalValue.$lte = Number(maxPrice);
-          }
-      
-          // 📌 STATUS FILTER
-          if (status) query.status = status;
-      
-          // 🔽 SORT
-          let sortOption = { createdAt: -1 }; // default newest
-          if (sort === "roi") sortOption = { roi: -1 };
-          if (sort === "price") sortOption = { pricePerShare: 1 };
-      
-          // 📄 PAGINATION
-          const skip = (page - 1) * limit;
-      
-          const properties = await Property.find(query)
-            .sort(sortOption)
-            .skip(skip)
-            .limit(Number(limit));
-      
-          const total = await Property.countDocuments(query);
-      
-          // 🎯 UI READY RESPONSE
-=======
           let query = {
             isPublished: true,
           };
@@ -615,21 +492,11 @@ console.log(
       
           const total = await Property.countDocuments(query);
       
->>>>>>> backup-local
           const formatted = properties.map((p) => ({
             id: p._id,
             name: p.name,
             location: p.location,
             city: p.location?.city,
-<<<<<<< HEAD
-            image: p.media?.images?.[0] || null,
-            roi: p.roi,
-            totalValue: p.totalValue,
-            sharePrice: p.pricePerShare,
-            fundedPercent: p.soldPercent,
-            type: p.type,
-            status: p.status,
-=======
             image: p.media?.images?.[0] || "",
             roi: p.roi,
             totalValue: p.totalValue,
@@ -642,7 +509,6 @@ console.log(
             type: p.type,
             status: p.status,
             locking_period: p.duration,
->>>>>>> backup-local
           }));
       
           res.json({
@@ -653,18 +519,12 @@ console.log(
               pages: Math.ceil(total / limit),
             },
           });
-<<<<<<< HEAD
-      
-        } catch (error) {
-          res.status(500).json({ error: error.message });
-=======
         } catch (error) {
           console.log(error);
       
           res.status(500).json({
             error: error.message,
           });
->>>>>>> backup-local
         }
       };
 
@@ -685,8 +545,6 @@ console.log(
         } catch (error) {
           res.status(500).json({ error: error.message });
         }
-<<<<<<< HEAD
-=======
       };
 
 
@@ -731,5 +589,4 @@ console.log(
             error: err.message,
           });
         }
->>>>>>> backup-local
       };

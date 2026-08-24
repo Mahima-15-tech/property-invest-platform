@@ -1,25 +1,14 @@
 const multer = require("multer");
-<<<<<<< HEAD
-const { CloudinaryStorage } = require("multer-storage-cloudinary");
-const cloudinary = require("../config/cloudinary");
-
-// 🔥 COMMON STORAGE (dynamic folder)
-=======
 const path = require("path");
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const cloudinary = require("../config/cloudinary");
 
 // 🔥 DYNAMIC STORAGE
->>>>>>> backup-local
 const storage = new CloudinaryStorage({
   cloudinary,
   params: async (req, file) => {
     let resourceType = "auto";
 
-<<<<<<< HEAD
-    if (file.mimetype.startsWith("video")) {
-      resourceType = "video";
-=======
     // Cloudinary video aur raw files (PDF/Docs) ke liye specific resource_type maangta hai
     if (file.mimetype.startsWith("video")) {
       resourceType = "video";
@@ -30,7 +19,6 @@ const storage = new CloudinaryStorage({
       file.originalname.toLowerCase().endsWith(".csv")
     ) {
       resourceType = "raw";
->>>>>>> backup-local
     }
 
     return {
@@ -43,21 +31,6 @@ const storage = new CloudinaryStorage({
 const upload = multer({
   storage,
   limits: {
-<<<<<<< HEAD
-    fileSize: 200 * 1024 * 1024,
-  },
-  fileFilter: (req, file, cb) => {
-    if (
-      file.mimetype.startsWith("image") ||
-      file.mimetype === "application/pdf" ||
-      file.mimetype.startsWith("video")
-    ) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only images, videos & PDFs allowed"), false);
-    }
-  },
-=======
     fileSize: 200 * 1024 * 1024, // 200MB limit
   },
   fileFilter: (req, file, cb) => {
@@ -99,7 +72,6 @@ const upload = multer({
   
     cb(new Error("Only images, videos & PDFs allowed"));
   }
->>>>>>> backup-local
 });
 
 // ✅ PROPERTY (unchanged)
@@ -110,30 +82,17 @@ const uploadFields = upload.fields([
   { name: "brochure", maxCount: 1 },
 ]);
 
-<<<<<<< HEAD
-// ✅ PROPERTY single (existing)
-const uploadSingle = upload.single("document");
-
-// ✅ 🔥 NEW FOR BROKER
-const uploadBrokerDoc = (req, res, next) => {
-  req.uploadFolder = "brokers"; // 🔥 separate folder
-=======
 // ✅ PROPERTY single
 const uploadSingle = upload.single("document");
 
 // ✅ NEW FOR BROKER
 const uploadBrokerDoc = (req, res, next) => {
   req.uploadFolder = "brokers";
->>>>>>> backup-local
   return upload.single("file")(req, res, next);
 };
 
 module.exports = {
   uploadFields,
   uploadSingle,
-<<<<<<< HEAD
-  uploadBrokerDoc, // 🔥 export this
-=======
   uploadBrokerDoc,
->>>>>>> backup-local
 };

@@ -5,21 +5,12 @@ const admin = require("../controllers/adminController");
 const protect = require("../middleware/authmiddleware");
 const authorize = require("../middleware/roleMiddleware");
 
-<<<<<<< HEAD
-
-=======
->>>>>>> backup-local
 router.post("/login", admin.adminLogin);
 
 router.patch(
   "/approve-broker/:id",
-<<<<<<< HEAD
-  protect,             
-  authorize("admin"),   
-=======
   protect,
   authorize("admin"),
->>>>>>> backup-local
   admin.approveBroker
 );
 
@@ -44,8 +35,6 @@ router.put(
   admin.approveInvestment
 );
 
-<<<<<<< HEAD
-=======
 router.get(
   "/users",
   protect,
@@ -53,7 +42,6 @@ router.get(
   admin.getAllUsers
 );
 
->>>>>>> backup-local
 router.put(
   "/investments/:id/reject",
   protect,
@@ -61,10 +49,6 @@ router.put(
   admin.rejectInvestment
 );
 
-<<<<<<< HEAD
-
-
-=======
 router.put(
   "/investments/:id",
   protect,
@@ -102,6 +86,5 @@ router.put(
   authorize("admin"),
   admin.rejectExit
 );
->>>>>>> backup-local
 
 module.exports = router;

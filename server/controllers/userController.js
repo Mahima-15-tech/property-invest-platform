@@ -1,5 +1,6 @@
 const User = require("../models/user");
 const Investment = require("../models/investment");
+const Property = require("../models/property");
 
 exports.uploadKyc = async (req, res) => {
   try {
@@ -294,42 +295,84 @@ exports.getUsersList = async (req, res) => {
   res.json(users);
 };
 
-
 exports.toggleWatchlist = async (req, res) => {
-  const user = await User.findById(req.user.id);
-  const { propertyId } = req.body;
+  try {
+    const userId = req.user.id;
+    const { propertyId } = req.params;
 
-  // ✅ null values hata do (important)
-  user.watchlist = user.watchlist.filter(Boolean);
+    const user = await User.findById(userId);
 
-  const index = user.watchlist.findIndex(
-    (id) => id && id.toString() === propertyId
-  );
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
 
-  if (index > -1) {
-    user.watchlist.splice(index, 1); // remove
-  } else {
-    user.watchlist.push(propertyId); // add
+    const property = await Property.findById(propertyId);
+
+    if (!property) {
+      return res.status(404).json({
+        message: "Property not found",
+      });
+    }
+
+    const alreadySaved = user.watchlist.some(
+      (id) => id.toString() === propertyId
+    );
+
+    if (alreadySaved) {
+      user.watchlist = user.watchlist.filter(
+        (id) => id.toString() !== propertyId
+      );
+
+      await user.save();
+
+      return res.json({
+        success: true,
+        message: "Property removed from watchlist",
+        action: "removed",
+      });
+    }
+
+    user.watchlist.push(propertyId);
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "Property added to watchlist",
+      action: "added",
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
-
-  await user.save();
-
-  res.json({ message: "Watchlist updated" });
 };
 
+
+// GET USER WATCHLIST
 exports.getWatchlist = async (req, res) => {
-  const user = await User.findById(req.user.id)
-    .populate("watchlist");
+  try {
+    const user = await User.findById(req.user.id)
+      .populate("watchlist");
 
-  const data = user.watchlist
-    .filter(Boolean) // ✅ null safe
-    .map(p => ({
-      id: p._id,
-      name: p.name,
-      location: `${p.location?.city}, ${p.location?.state}`, 
-      image: p.media?.images?.[0],
-      roi: p.roi,
-    }));
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
 
-  res.json(data);
+    res.json({
+      success: true,
+      data: user.watchlist,
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
 };

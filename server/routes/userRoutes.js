@@ -18,7 +18,16 @@ router.put("/kyc/:id", protect, user.updateKycStatus);
 router.get("/investor/:id", protect, user.getInvestorDetails);
 router.get("/investors/export", protect, user.exportInvestorsPDF);
 router.get("/list", protect, user.getUsersList);
-router.post("/watchlist", protect, user.toggleWatchlist);
-router.get("/watchlist", protect, user.getWatchlist);
+router.post(
+  "/watchlist/toggle/:propertyId",
+  protect,
+  user.toggleWatchlist
+);
+
+router.get(
+  "/watchlist",
+  protect,
+  user.getWatchlist
+);
 
 module.exports = router;

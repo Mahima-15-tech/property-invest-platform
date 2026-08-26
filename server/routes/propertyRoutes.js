@@ -6,6 +6,7 @@ const protect = require("../middleware/authmiddleware");
 const authorize = require("../middleware/roleMiddleware");
 const { uploadFields } = require("../middleware/upload");
 
+
 // router.post("/", protect, authorize("admin"), property.createProperty);
 router.post(
   "/create",
@@ -22,6 +23,7 @@ router.get("/featured", property.getFeaturedProperties);
 router.get("/related/:id", property.getRelatedProperties); 
 
 router.get("/", property.getAllProperties);
+router.get("/nearby", property.getNearbyProperties);
 
 router.get("/:id", property.getPropertyById);
 
@@ -39,6 +41,8 @@ router.patch(
   authorize("admin"),
   property.toggleFeatured
 );
+
+
 
 router.delete("/:id", protect, authorize("admin"), property.deleteProperty);
 

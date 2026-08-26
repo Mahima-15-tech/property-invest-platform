@@ -590,3 +590,109 @@ console.log(
           });
         }
       };
+
+      exports.getNearbyProperties = async (req, res) => {
+        try {
+          const { lat, lng, radius = 10 } = req.query;
+      
+          // Validation
+          if (!lat || !lng) {
+            return res.status(400).json({
+              success: false,
+              message: "Latitude and longitude are required",
+            });
+          }
+      
+          const userLat = Number(lat);
+          const userLng = Number(lng);
+          const radiusInKm = Number(radius);
+      
+          if (isNaN(userLat) || isNaN(userLng)) {
+            return res.status(400).json({
+              success: false,
+              message: "Invalid latitude or longitude",
+            });
+          }
+      
+          // Get published properties having location
+          const properties = await Property.find({
+            isPublished: true,
+            "location.lat": { $ne: null },
+            "location.lng": { $ne: null },
+          });
+      
+          // Distance calculation
+          const calculateDistance = (lat1, lon1, lat2, lon2) => {
+            const R = 6371; // Earth radius in KM
+      
+            const dLat = ((lat2 - lat1) * Math.PI) / 180;
+            const dLon = ((lon2 - lon1) * Math.PI) / 180;
+      
+            const a =
+              Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos((lat1 * Math.PI) / 180) *
+                Math.cos((lat2 * Math.PI) / 180) *
+                Math.sin(dLon / 2) *
+                Math.sin(dLon / 2);
+      
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      
+            return R * c;
+          };
+      
+          // Filter nearby properties
+          const nearbyProperties = properties
+            .map((property) => {
+              const distance = calculateDistance(
+                userLat,
+                userLng,
+                Number(property.location.lat),
+                Number(property.location.lng)
+              );
+      
+              return {
+                id: property._id,
+                name: property.name,
+                type: property.type,
+      
+                location: property.location,
+      
+                image: property.media?.images?.[0] || "",
+      
+                roi: property.roi,
+                totalValue: property.totalValue,
+                sharePrice: property.pricePerShare,
+      
+                fundedPercent: Number(
+                  (property.soldPercent || 0).toFixed(2)
+                ),
+      
+                status: property.status,
+      
+                distance: Number(distance.toFixed(2)),
+              };
+            })
+            .filter((property) => property.distance <= radiusInKm)
+            .sort((a, b) => a.distance - b.distance);
+      
+          return res.status(200).json({
+            success: true,
+            userLocation: {
+              lat: userLat,
+              lng: userLng,
+            },
+            radius: `${radiusInKm} km`,
+            total: nearbyProperties.length,
+            data: nearbyProperties,
+          });
+      
+        } catch (error) {
+          console.error("Nearby property error:", error);
+      
+          return res.status(500).json({
+            success: false,
+            message: "Failed to fetch nearby properties",
+            error: error.message,
+          });
+        }
+      };

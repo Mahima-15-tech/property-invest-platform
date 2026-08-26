@@ -22,6 +22,7 @@ const auditLogRoutes = require("./routes/auditLogRoutes");
 const kycRoutes = require("./routes/kycRoutes");
 const paymentRoutes = require("./routes/paymentroute");
 const contactRoutes = require("./routes/contactRoutes");
+const profileRoutes = require("./routes/profileRoutes");
 
 // 🔥 DB connect
 connectDB();
@@ -67,6 +68,7 @@ app.use("/api", auditLogRoutes);
 app.use("/api/kyc", kycRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/contact", contactRoutes);
+app.use("/api", profileRoutes);
 
 // test route
 app.get("/test", (req, res) => {

@@ -1,146 +1,228 @@
 const User = require("../models/user");
-const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+
+
+// ================= SEND OTP =================
 
 exports.sendOtp = async (req, res) => {
-  const { phone, role, name } = req.body;
+  try {
+    const { email, role, name } = req.body;
 
-  let user = await User.findOne({ phone });
+    if (!email) {
+      return res.status(400).json({
+        message: "Email is required",
+      });
+    }
 
+    const normalizedEmail = email.toLowerCase().trim();
 
-  if (!user) {
-    user = await User.create({
-      phone,
-      name,
-      role: role || "investor",
+    let user = await User.findOne({
+      email: normalizedEmail,
     });
-  } else {
 
-    user.role = role || user.role;
+    // फिलहाल fixed OTP testing ke liye
+    const otp = "123456";
+
+    // New user
+    if (!user) {
+      user = await User.create({
+        email: normalizedEmail,
+        name: name || "",
+        role: role || "investor",
+        otp,
+        otpExpiry: Date.now() + 5 * 60 * 1000,
+      });
+    } else {
+      // Existing user
+      if (role && user.role !== role) {
+        return res.status(400).json({
+          message: "Invalid login type",
+        });
+      }
+
+      user.otp = otp;
+      user.otpExpiry = Date.now() + 5 * 60 * 1000;
+
+      await user.save();
+    }
+
+    res.json({
+      message: "OTP generated successfully",
+      otp, // फिलहाल Postman testing ke liye
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      error: error.message,
+    });
   }
-
-  const otp = "123456";
-
-  user.otp = otp;
-  user.otpExpiry = Date.now() + 5 * 60 * 1000;
-
-  await user.save();
-
-  res.json({ message: "OTP sent", otp });
 };
+
+
+// ================= VERIFY OTP =================
 
 exports.verifyOtp = async (req, res) => {
-  const { phone, otp, role } = req.body;
+  try {
+    const { email, otp, role } = req.body;
 
-  const user = await User.findOne({ phone });
+    if (!email || !otp) {
+      return res.status(400).json({
+        message: "Email and OTP are required",
+      });
+    }
 
-  if (!user) {
-    return res.status(400).json({ message: "User not found" });
-  }
-  // ✅ safe
-if (role && user.role !== role)  {
-    return res.status(400).json({
-      message: `Invalid login type`,
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const user = await User.findOne({
+      email: normalizedEmail,
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        message: "User not found",
+      });
+    }
+
+    if (role && user.role !== role) {
+      return res.status(400).json({
+        message: "Invalid login type",
+      });
+    }
+
+    if (!user.otp) {
+      return res.status(400).json({
+        message: "OTP not requested",
+      });
+    }
+
+    if (user.otp !== otp.toString()) {
+      return res.status(400).json({
+        message: "Invalid OTP",
+      });
+    }
+
+    if (!user.otpExpiry || user.otpExpiry < Date.now()) {
+      return res.status(400).json({
+        message: "OTP expired",
+      });
+    }
+
+    const isNewUser = !user.isVerified;
+
+    user.isVerified = true;
+    user.otp = null;
+    user.otpExpiry = null;
+
+    await user.save();
+
+    const token = jwt.sign(
+      {
+        id: user._id,
+        role: user.role,
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "7d",
+      }
+    );
+
+    res.json({
+      message: isNewUser
+        ? "Signup successful"
+        : "Login successful",
+
+      token,
+      user,
+      type: isNewUser ? "signup" : "login",
+      isNewUser,
+      role: user.role,
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      error: error.message,
     });
   }
-
-  if (!user.otp) {
-    return res.status(400).json({
-      message: "OTP not requested",
-    });
-  }
-
-  if (user.otp !== otp) {
-    return res.status(400).json({ message: "Invalid OTP" });
-  }
-
-  if (user.otpExpiry < Date.now()) {
-    return res.status(400).json({ message: "OTP expired" });
-  }
-
-  // 🔥 CHECK: pehle se verified tha ya nahi
-  const isNewUser = !user.isVerified;
-
-  user.isVerified = true;
-  user.otp = null;
-
-  await user.save();
-
-  const token = jwt.sign(
-    { id: user._id, role: user.role },
-    process.env.JWT_SECRET,
-    { expiresIn: "7d" }
-  );
-
-  res.json({
-    message: isNewUser
-      ? "Signup successful"
-      : "Login successful",
-    token,
-    user,
-    type: isNewUser ? "signup" : "login",
-    isNewUser: isNewUser,
-    role: user.role,
-  });
 };
 
 
-  const jwt = require("jsonwebtoken");
+// ================= RESEND OTP =================
 
+exports.resendOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
 
-  exports.applyReferral = async (req, res) => {
-    try {
-      const { referralCode } = req.body;
-  
-      const user = await User.findById(req.user.id);
-  
-      if (user.referredBy) {
-        return res.status(400).json({
-          message: "Referral already applied",
-        });
-      }
-  
-      const broker = await User.findOne({ referralCode });
-  
-      if (!broker) {
-        return res.status(400).json({
-          message: "Invalid referral code",
-        });
-      }
-  
-      user.referredBy = broker._id;
-      await user.save();
-  
-      res.json({
-        message: "Referral applied successfully",
+    if (!email) {
+      return res.status(400).json({
+        message: "Email is required",
       });
-  
-    } catch (error) {
-      res.status(500).json({ error: error.message });
     }
-  };
 
+    const normalizedEmail = email.toLowerCase().trim();
 
-  exports.resendOtp = async (req, res) => {
-    const { phone, referralCode } = req.body; // 🔥 ADD THIS
-  
-    const user = await User.findOne({ phone });
-  
+    const user = await User.findOne({
+      email: normalizedEmail,
+    });
+
     if (!user) {
-      return res.status(400).json({ message: "User not found" });
+      return res.status(400).json({
+        message: "User not found",
+      });
     }
-  
+
     const otp = "123456";
-  
+
     user.otp = otp;
     user.otpExpiry = Date.now() + 5 * 60 * 1000;
-  
-    // 🔥 referral fix
-    if (!user.referredBy && referralCode) {
-      const broker = await User.findOne({ referralCode });
-      if (broker) user.referredBy = broker._id;
-    }
-  
+
     await user.save();
-  
-    res.json({ message: "OTP resent", otp });
-  };
+
+    res.json({
+      message: "OTP generated successfully",
+      otp,
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      error: error.message,
+    });
+  }
+};
+
+
+// ================= APPLY REFERRAL =================
+
+exports.applyReferral = async (req, res) => {
+  try {
+    const { referralCode } = req.body;
+
+    const user = await User.findById(req.user.id);
+
+    if (user.referredBy) {
+      return res.status(400).json({
+        message: "Referral already applied",
+      });
+    }
+
+    const broker = await User.findOne({ referralCode });
+
+    if (!broker) {
+      return res.status(400).json({
+        message: "Invalid referral code",
+      });
+    }
+
+    user.referredBy = broker._id;
+
+    await user.save();
+
+    res.json({
+      message: "Referral applied successfully",
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      error: error.message,
+    });
+  }
+};

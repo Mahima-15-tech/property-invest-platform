@@ -42,7 +42,7 @@ const navigation = [
   { name: "Exit Requests", href: "/exit-requests", icon: LogOut },
   { name: "Reports", href: "/reports", icon: BarChart3 },
   { name: "CMS", href: "/cms", icon: FileText },
-  { name: "Notifications", href: "/notifications", icon: Bell, badge: "3" },
+  // { name: "Notifications", href: "/notifications", icon: Bell, badge: "3" },
   { name: "Audit Logs", href: "/audit-logs", icon: ClipboardList },
   { name: "Users Management", href: "/users", icon: ShieldCheck },
   { name: "Settings", href: "/settings", icon: Settings },
@@ -76,7 +76,7 @@ export function RootLayout() {
               </div>
               <div className="flex flex-col">
                 <span className="text-sm font-bold tracking-wider text-white uppercase leading-none">
-                  PropInvest
+               PronexWorld
                 </span>
                 <span className="text-[10px] text-slate-400 font-medium tracking-wide">
                   Admin Console
@@ -182,7 +182,7 @@ export function RootLayout() {
                   <Sparkles className="w-4 h-4" />
                 </div>
                 <span className="text-base font-bold text-white tracking-wide">
-                  PropInvest
+                 PronexWorld
                 </span>
               </div>
 
@@ -239,7 +239,7 @@ export function RootLayout() {
             </Button>
 
             {/* SEARCH INPUT */}
-            <div className="relative flex-1">
+            {/* <div className="relative flex-1">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
                 type="search"
@@ -249,21 +249,21 @@ export function RootLayout() {
               <div className="hidden sm:flex items-center gap-0.5 absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-slate-400 bg-white px-1.5 py-0.5 rounded border border-slate-200 shadow-xs">
                 <Command className="w-2.5 h-2.5" /> K
               </div>
-            </div>
+            </div> */}
           </div>
 
           {/* RIGHT ACTIONS */}
           <div className="flex items-center gap-2.5 sm:gap-4">
 
             {/* NOTIFICATIONS */}
-            <Button
+            {/* <Button
               variant="ghost"
               size="icon"
               className="relative rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 h-9 w-9"
             >
               <Bell className="h-4 w-4" />
               <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-600 ring-2 ring-white animate-pulse" />
-            </Button>
+            </Button> */}
 
             <div className="h-5 w-[1px] bg-slate-200 hidden sm:block" />
 

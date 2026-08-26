@@ -117,46 +117,32 @@ export function Investors() {
   };
 
   const handleApproveInvestment = async (inv) => {
-
     try {
-  
       const shares =
         editedInvestment[inv._id]?.shares ??
         inv.shares;
   
       const amount =
-        shares *
-        inv.pricePerShare;
-  
-      await updateInvestment(
-        inv._id,
-        {
-          shares,
-          amount,
-        }
-      );
+        editedInvestment[inv._id]?.amount ??
+        inv.amount;
   
       await approveInvestment(inv._id, {
-        shares,
-        amount,
-    });
+        shares: Number(shares),
+        amount: Number(amount),
+      });
   
-      toast.success(
-        "Investment Approved"
-      );
+      toast.success("Investment Approved");
   
-      handleView(
-        selectedInvestor.user._id
-      );
+      handleView(selectedInvestor.user._id);
+      fetchInvestors();
   
     } catch (err) {
       console.log("ERROR =", err);
       console.log("Response =", err.response);
       console.log("Data =", err.response?.data);
-    
+  
       toast.error(err.response?.data?.message || "Approval Failed");
     }
-  
   };
 
   const handleRejectInvestment = async (id) => {

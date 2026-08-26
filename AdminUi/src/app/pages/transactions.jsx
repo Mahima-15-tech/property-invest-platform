@@ -414,53 +414,71 @@ const Pagination = ({ page, totalPages, setPage }) => {
         </Dialog>
 
         <Dialog open={open} onOpenChange={setOpen}>
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>Add Transaction</DialogTitle>
-      </DialogHeader>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>Add Transaction</DialogTitle>
+    </DialogHeader>
 
-      <div className="space-y-4">
+    <div className="space-y-4">
+
       <select
-  className="w-full border p-2 rounded"
-  value={form.userId}
-  onChange={(e) => setForm({ ...form, userId: e.target.value })}
->
-  <option value="">Select User</option>
-  {users.map((u) => (
-    <option key={u._id} value={u._id}>
-      {u.name}
-    </option>
-  ))}
-</select>
+        className="w-full border p-2 rounded"
+        value={form.userId}
+        onChange={(e) =>
+          setForm({ ...form, userId: e.target.value })
+        }
+      >
+        <option value="">Select User</option>
 
-<select
-  className="w-full border p-2 rounded"
-  value={form.propertyId}
-  onChange={(e) => setForm({ ...form, propertyId: e.target.value })}
->
-  <option value="">Select Property</option>
-  {properties.map((p) => (
-    <option key={p._id} value={p._id}>
-      {p.name}
-    </option>
-  ))}
-</select>
+        {users.map((u) => (
+          <option key={u._id} value={u._id}>
+            {u.name}
+          </option>
+        ))}
+      </select>
 
-<Input
-  placeholder="Amount"
-  type="number"
-  value={form.amount}
-  onChange={(e) => setForm({ ...form, amount: e.target.value })}
-/>
+      <select
+        className="w-full border p-2 rounded"
+        value={form.propertyId}
+        onChange={(e) =>
+          setForm({ ...form, propertyId: e.target.value })
+        }
+      >
+        <option value="">Select Property</option>
 
-      
+        {properties.map((p) => (
+          <option key={p._id} value={p._id}>
+            {p.name}
+          </option>
+        ))}
+      </select>
 
-        <Button onClick={handleAddTransaction}>
-          Save
-        </Button>
-      </div>
-    </DialogContent>
-  </Dialog>
+      <Input
+        placeholder="Amount"
+        type="number"
+        value={form.amount}
+        onChange={(e) =>
+          setForm({ ...form, amount: e.target.value })
+        }
+      />
+
+      {/* Notes */}
+      <textarea
+        placeholder="Add notes..."
+        value={form.notes || ""}
+        onChange={(e) =>
+          setForm({ ...form, notes: e.target.value })
+        }
+        className="w-full min-h-[100px] border rounded p-2 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500"
+      />
+
+      <Button onClick={handleAddTransaction}>
+        Save
+      </Button>
+
+    </div>
+  </DialogContent>
+</Dialog>
 
       </div>
     );

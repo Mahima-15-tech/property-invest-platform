@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const instance = axios.create({
-  baseURL: "https://property-invest-platform.onrender.com/api",
+  baseURL: "http://localhost:8000/api",
 });
 
 // 🔥 TOKEN AUTO ADD
@@ -19,3 +19,4 @@ export default instance;
 
 //https://property-platform.onrender.com/api
 // https://property-invest-platform.onrender.com/api
+// http://localhost:8000/api

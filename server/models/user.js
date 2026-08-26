@@ -4,8 +4,10 @@
   
     email: {
       type: String,
+      required: true,
       unique: true,
-      sparse: true,
+      lowercase: true,
+      trim: true,
     },
   
     password: {
@@ -15,10 +17,9 @@
   
     phone: {
       type: String,
-      required: true,
-      unique: true,
+      default: null,
     },
-  
+
     role: {
       type: String,
       enum: ["admin", "investor", "broker"],

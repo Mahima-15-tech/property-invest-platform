@@ -19,7 +19,7 @@ export function Settings() {
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="payment">Payment</TabsTrigger>
           <TabsTrigger value="commission">Commission</TabsTrigger>
-          <TabsTrigger value="permissions">Permissions</TabsTrigger>
+          {/* <TabsTrigger value="permissions">Permissions</TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="general" className="space-y-6">
@@ -30,19 +30,19 @@ export function Settings() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="platform-name">Platform Name</Label>
-                <Input id="platform-name" defaultValue="RealEstateHub" />
+                <Input id="platform-name" defaultValue="PronexWorld" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="support-email">Support Email</Label>
-                <Input id="support-email" type="email" defaultValue="support@realestatehub.com" />
+                <Input id="support-email" type="email" defaultValue="support@pronexworld.com" />
               </div>
-              <div className="flex items-center justify-between">
+              {/* <div className="flex items-center justify-between">
                 <div>
                   <Label htmlFor="maintenance">Maintenance Mode</Label>
                   <p className="text-sm text-muted-foreground">Put the platform in maintenance mode</p>
                 </div>
                 <Switch id="maintenance" />
-              </div>
+              </div> */}
               <Button>Save Changes</Button>
             </CardContent>
           </Card>
@@ -62,13 +62,13 @@ export function Settings() {
                 <Label htmlFor="min-investment">Minimum Investment ($)</Label>
                 <Input id="min-investment" type="number" defaultValue="1000" />
               </div>
-              <div className="flex items-center justify-between">
+              {/* <div className="flex items-center justify-between">
                 <div>
                   <Label htmlFor="auto-withdraw">Auto Withdrawal</Label>
                   <p className="text-sm text-muted-foreground">Enable automatic withdrawal processing</p>
                 </div>
                 <Switch id="auto-withdraw" />
-              </div>
+              </div> */}
               <Button>Save Changes</Button>
             </CardContent>
           </Card>
@@ -97,7 +97,7 @@ export function Settings() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="permissions" className="space-y-6">
+        {/* <TabsContent value="permissions" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Role Permissions</CardTitle>
@@ -112,7 +112,7 @@ export function Settings() {
               <Button>Save Changes</Button>
             </CardContent>
           </Card>
-        </TabsContent>
+        </TabsContent> */}
       </Tabs>
     </div>
   );

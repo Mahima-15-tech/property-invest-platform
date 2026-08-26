@@ -59,6 +59,11 @@ const kycSchema = new mongoose.Schema({
     enum: ["draft", "submitted", "approved", "rejected"],
     default: "draft",
   },
+  approvalStatus: {
+    type: String,
+    enum: ["pending", "approved", "rejected"],
+    default: "pending",
+  },
 
 }, { timestamps: true });
 

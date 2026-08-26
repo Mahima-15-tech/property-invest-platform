@@ -24,18 +24,46 @@ exports.saveBasicInfo = async (req, res) => {
 };
 
 exports.uploadPan = async (req, res) => {
-  const { panNumber } = req.body;
+  try {
+    const { panNumber } = req.body;
 
-  const kyc = await KYC.findOne({ userId: req.user.id });
+    const kyc = await KYC.findOne({ userId: req.user.id });
 
-  kyc.panNumber = panNumber;
-  kyc.panFile = req.file?.path;
-  kyc.panStatus = "verified";
-  kyc.currentStep = 3;
+    if (!kyc) {
+      return res.status(400).json({
+        message: "Please complete basic information first",
+      });
+    }
 
-  await kyc.save();
+    if (!panNumber) {
+      return res.status(400).json({
+        message: "PAN number is required",
+      });
+    }
 
-  res.json({ message: "PAN saved", kyc });
+    if (!req.file) {
+      return res.status(400).json({
+        message: "PAN document is required",
+      });
+    }
+
+    kyc.panNumber = panNumber;
+    kyc.panFile = req.file.path;
+    kyc.panStatus = "verified";
+    kyc.currentStep = 3;
+
+    await kyc.save();
+
+    res.json({
+      message: "PAN saved successfully",
+      kyc,
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
 };
 
 exports.uploadAadhaar = async (req, res) => {
@@ -97,6 +125,7 @@ exports.saveBank = async (req, res) => {
     const kyc = await KYC.findOne({ userId: req.user.id });
   
     kyc.status = "submitted";
+    kyc.approvalStatus = "pending";
   
     await kyc.save();
   
@@ -104,5 +133,9 @@ exports.saveBank = async (req, res) => {
       kycStatus: "pending",
     });
   
-    res.json({ message: "KYC submitted successfully" });
+    res.json({
+      message: "KYC submitted successfully",
+      status: kyc.status,
+      approvalStatus: kyc.approvalStatus,
+    });
   };

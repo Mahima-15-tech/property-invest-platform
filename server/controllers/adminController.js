@@ -2,7 +2,7 @@ const User = require("../models/user");
 const AuditLog = require("../models/auditLog");
 const Investment = require("../models/investment");
 const Exit = require("../models/exit");
-
+const KYC = require("../models/kyc");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
@@ -68,122 +68,178 @@ exports.approveBroker = async (req, res) => {
   };
 
   exports.approveKyc = async (req, res) => {
-
-    
-
-
-    const { id } = req.params;
+    try {
+      const { id } = req.params;
   
-    const user = await User.findById(id);
+      const user = await User.findById(id);
   
-    user.kycStatus = "approved";
-    await user.save();
-
-    await AuditLog.create({
-      action: "KYC Approved",
-      user: req.user.id,
-      details: user.name, // ✅ now correct
-      type: "approval",
-    });
+      if (!user) {
+        return res.status(404).json({
+          message: "User not found",
+        });
+      }
   
-    res.json({ message: "KYC approved" });
+      user.kycStatus = "approved";
+      await user.save();
+  
+      const kyc = await KYC.findOneAndUpdate(
+        { userId: id },
+        {
+          approvalStatus: "approved",
+        },
+        { new: true }
+      );
+  
+      res.json({
+        message: "KYC approved",
+        status: kyc.status,
+        approvalStatus: kyc.approvalStatus,
+      });
+  
+    } catch (error) {
+      res.status(500).json({
+        message: error.message,
+      });
+    }
   };
+  
   
   exports.rejectKyc = async (req, res) => {
-    const { id } = req.params;
+    try {
+      const { id } = req.params;
   
-    const user = await User.findById(id);
+      const user = await User.findById(id);
   
-    user.kycStatus = "rejected";
-    await user.save();
+      if (!user) {
+        return res.status(404).json({
+          message: "User not found",
+        });
+      }
   
-    res.json({ message: "KYC rejected" });
+      // USER MODEL
+      user.kycStatus = "rejected";
+      await user.save();
+  
+      // KYC MODEL
+      await KYC.findOneAndUpdate(
+        { userId: id },
+        { status: "rejected" }
+      );
+  
+      res.json({
+        message: "KYC rejected",
+      });
+  
+    } catch (error) {
+      res.status(500).json({
+        message: error.message,
+      });
+    }
   };
+  
+
 
 
   const Property = require("../models/property");
 
 
   exports.approveInvestment = async (req, res) => {
-    const investment = await Investment.findById(req.params.id);
-    const { shares, amount } = req.body;
-
-if (shares !== undefined) {
-    investment.shares = Number(shares);
-}
-
-if (amount !== undefined) {
-    investment.amount = Number(amount);
-}
-
-    if (!investment) {
-      return res.status(404).json({
-        message: "Investment not found",
+    try {
+      const investment = await Investment.findById(req.params.id);
+  
+      if (!investment) {
+        return res.status(404).json({
+          message: "Investment not found",
+        });
+      }
+  
+      if (investment.status === "approved") {
+        return res.status(400).json({
+          message: "Investment already approved",
+        });
+      }
+  
+      const { shares, amount } = req.body;
+  
+      if (shares !== undefined) {
+        investment.shares = Number(shares);
+      }
+  
+      if (amount !== undefined) {
+        investment.amount = Number(amount);
+      }
+  
+      const property = await Property.findById(investment.propertyId);
+  
+      if (!property) {
+        return res.status(404).json({
+          message: "Property not found",
+        });
+      }
+  
+      if (investment.shares > property.availableShares) {
+        return res.status(400).json({
+          message: "Not enough shares available",
+        });
+      }
+  
+      const user = await User.findById(investment.userId);
+  
+      if (!user) {
+        return res.status(404).json({
+          message: "User not found",
+        });
+      }
+  
+      if (user.kycStatus !== "approved") {
+        return res.status(400).json({
+          message: "KYC not approved",
+        });
+      }
+  
+      // Property update based on ADMIN APPROVED values
+      property.availableShares =
+        property.availableShares - investment.shares;
+  
+      property.soldShares =
+        property.soldShares + investment.shares;
+  
+      property.investedAmount =
+        property.investedAmount + investment.amount;
+  
+      property.investors =
+        property.investors + 1;
+  
+      property.soldPercent = Number(
+        (
+          (property.soldShares / property.totalShares) *
+          100
+        ).toFixed(2)
+      );
+  
+      property.status =
+        property.availableShares <= 0
+          ? "funded"
+          : "funding";
+  
+      investment.status = "approved";
+      investment.canEdit = false;
+  
+      await investment.save();
+      await property.save();
+  
+      res.json({
+        message: "Investment approved successfully",
+        investment,
+      });
+  
+    } catch (error) {
+      console.error("APPROVE INVESTMENT ERROR:", error);
+  
+      res.status(500).json({
+        message: error.message || "Failed to approve investment",
       });
     }
-    
-    if (investment.status === "approved") {
-      return res.status(400).json({
-        message: "Investment already approved",
-      });
-    }
-    const property = await Property.findById(investment.propertyId);
-
-    if (investment.shares > property.availableShares) {
-      return res.status(400).json({
-          message: "Not enough shares available"
-      });
-  }
-  
-    const user = await User.findById(investment.userId);
-  
-    // ❗ KYC check
-    if (user.kycStatus !== "approved") {
-      return res.status(400).json({
-        message: "KYC not approved",
-      });
-    }
-  
-   
-
-
-    //  FINAL ACTION
-
-
-    property.availableShares =
-    property.availableShares - investment.shares;
-  
-  property.soldShares =
-    property.soldShares + investment.shares;
-  
-  property.investedAmount =
-    property.investedAmount + investment.amount;
-  
-  property.investors =
-    property.investors + 1;
-  
-  property.soldPercent = Number(
-    (
-      (property.soldShares / property.totalShares) *
-      100
-    ).toFixed(2)
-  );
-  
-  property.status =
-    property.availableShares <= 0
-      ? "funded"
-      : "funding";
-
-await property.save();
-
-investment.status = "approved";
-investment.canEdit = false;
-
-await investment.save();
-  
-    res.json({
-      message: "Investment approved & shares allocated",
-    });
   };
 
   exports.rejectInvestment = async (req, res) => {

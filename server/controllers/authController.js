@@ -6,11 +6,17 @@ const jwt = require("jsonwebtoken");
 
 exports.sendOtp = async (req, res) => {
   try {
-    const { email, role, name } = req.body;
+    const { email, role, name, mode } = req.body;
 
     if (!email) {
       return res.status(400).json({
         message: "Email is required",
+      });
+    }
+
+    if (!mode || !["signup", "login"].includes(mode)) {
+      return res.status(400).json({
+        message: "Valid mode is required: signup or login",
       });
     }
 
@@ -20,11 +26,17 @@ exports.sendOtp = async (req, res) => {
       email: normalizedEmail,
     });
 
-    // फिलहाल fixed OTP testing ke liye
     const otp = "123456";
 
-    // New user
-    if (!user) {
+    // ================= SIGNUP =================
+    if (mode === "signup") {
+
+      if (user) {
+        return res.status(400).json({
+          message: "User already exists. Please login.",
+        });
+      }
+
       user = await User.create({
         email: normalizedEmail,
         name: name || "",
@@ -32,8 +44,17 @@ exports.sendOtp = async (req, res) => {
         otp,
         otpExpiry: Date.now() + 5 * 60 * 1000,
       });
-    } else {
-      // Existing user
+    }
+
+    // ================= LOGIN =================
+    if (mode === "login") {
+
+      if (!user) {
+        return res.status(400).json({
+          message: "User not found. Please signup first.",
+        });
+      }
+
       if (role && user.role !== role) {
         return res.status(400).json({
           message: "Invalid login type",
@@ -48,7 +69,7 @@ exports.sendOtp = async (req, res) => {
 
     res.json({
       message: "OTP generated successfully",
-      otp, // फिलहाल Postman testing ke liye
+      otp,
     });
 
   } catch (error) {

@@ -8,98 +8,319 @@ exports.getPortfolio = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const investments = await Investment.find({
+    // ==========================================
+    // GET ALL USER INVESTMENTS
+    // ==========================================
+
+    const allInvestments = await Investment.find({
       userId,
-      status: "approved", 
-    }).populate("propertyId");
+    })
+      .populate("propertyId")
+      .sort({ createdAt: -1 });
+
+    // ==========================================
+    // VALID INVESTMENTS
+    // ==========================================
+
+    const validInvestments =
+      allInvestments.filter(
+        (inv) => inv.propertyId
+      );
+
+    // ==========================================
+    // APPROVED INVESTMENTS
+    // Only these count in portfolio summary
+    // ==========================================
+
+    const approvedInvestments =
+      validInvestments.filter(
+        (inv) =>
+          inv.status === "approved"
+      );
+
+    // ==========================================
+    // PENDING / UNDER REVIEW
+    // ==========================================
+
+    const pendingInvestments =
+      validInvestments.filter(
+        (inv) =>
+          inv.status !== "approved" &&
+          inv.status !== "rejected"
+      );
 
     let totalInvested = 0;
     let totalCurrentValue = 0;
     let totalShares = 0;
     let totalRental = 0;
 
-    console.log("Investments:");
+    // ==========================================
+    // ACTIVE / APPROVED INVESTMENTS
+    // ==========================================
 
-investments.forEach((inv) => {
-  console.log({
-    investmentId: inv._id,
-    propertyId: inv.propertyId,
-  });
-});
+    const items =
+      approvedInvestments.map((inv) => {
 
-    const validInvestments = investments.filter(inv => inv.propertyId);
+        const p = inv.propertyId;
 
-    const items = validInvestments.map((inv) => {
-      const p = inv.propertyId;
+        const priceNow =
+          p.currentPricePerShare ||
+          p.pricePerShare ||
+          0;
 
-      const priceNow = p.currentPricePerShare || p.pricePerShare || 0;
+        const invested =
+          inv.amount ||
+          inv.shares *
+            (
+              inv.pricePerShare ||
+              p.pricePerShare ||
+              0
+            );
 
-      const currentValue = inv.shares * priceNow;
-      const invested = inv.amount || (inv.shares * (inv.pricePerShare || p.pricePerShare || 0));
-      const profit = currentValue - invested;
+        const currentValue =
+          inv.shares * priceNow;
 
-      const ownership = p.totalShares
-        ? (inv.shares / p.totalShares) * 100
+        const profit =
+          currentValue - invested;
+
+        const ownership =
+          p.totalShares
+            ? (
+                inv.shares /
+                p.totalShares
+              ) * 100
+            : 0;
+
+        const rentalYield =
+          p.rentalYield || 0;
+
+        const rentalIncome =
+          (
+            invested *
+            rentalYield
+          ) / 100;
+
+        totalInvested += invested;
+        totalCurrentValue += currentValue;
+        totalShares += inv.shares;
+        totalRental += rentalIncome;
+
+        return {
+          investmentId: inv._id,
+          propertyId: p._id,
+
+          propertyName:
+            p.name,
+
+          location:
+            p.location?.city || "",
+
+          state:
+            p.location?.state || "",
+
+          image:
+            p.media?.images?.[0] ||
+            null,
+
+          type:
+            p.type || "Property",
+
+          totalValue:
+            p.totalValue || 0,
+
+          sharePrice:
+            priceNow,
+
+          lockInYears:
+            p.lockInYears ?? 2,
+
+          totalShares:
+            p.totalShares || 0,
+
+          enableFullOwnership:
+            p.enableFullOwnership ?? false,
+
+          shares:
+            inv.shares,
+
+          invested,
+
+          currentValue,
+
+          roi:
+            p.roi || 0,
+
+          ownership:
+            Number(
+              ownership.toFixed(1)
+            ),
+
+          profit,
+
+          rentalYield,
+
+          incomeReceived:
+            rentalIncome,
+
+          documents:
+            p.media?.documents || [],
+
+          // STATUS
+          status:
+            inv.status,
+
+          paymentStatus:
+            inv.paymentStatus,
+
+          createdAt:
+            inv.createdAt,
+        };
+      });
+
+    // ==========================================
+    // PENDING INVESTMENTS
+    // ==========================================
+
+    const pendingItems =
+      pendingInvestments.map((inv) => {
+
+        const p = inv.propertyId;
+
+        const amount =
+          inv.amount ||
+          inv.requestedAmount ||
+          (
+            (inv.shares ||
+              inv.requestedShares ||
+              0) *
+            (
+              inv.pricePerShare ||
+              p.pricePerShare ||
+              0
+            )
+          );
+
+        return {
+          investmentId:
+            inv._id,
+
+          propertyId:
+            p._id,
+
+          propertyName:
+            p.name,
+
+          location:
+            p.location?.city || "",
+
+          state:
+            p.location?.state || "",
+
+          image:
+            p.media?.images?.[0] ||
+            null,
+
+          type:
+            p.type || "Property",
+
+          shares:
+            inv.shares ||
+            inv.requestedShares ||
+            0,
+
+          amount,
+
+          sharePrice:
+            inv.pricePerShare ||
+            p.pricePerShare ||
+            0,
+
+          // IMPORTANT STATUS
+          status:
+            inv.status,
+
+          paymentStatus:
+            inv.paymentStatus,
+
+          createdAt:
+            inv.createdAt,
+        };
+      });
+
+    // ==========================================
+    // EXPECTED RETURN
+    // ==========================================
+
+    const expectedReturn =
+      totalInvested
+        ? approvedInvestments.reduce(
+            (sum, inv) => {
+
+              const roi =
+                inv.propertyId?.roi || 0;
+
+              const invested =
+                inv.amount ||
+                inv.shares *
+                  (
+                    inv.pricePerShare ||
+                    inv.propertyId
+                      ?.pricePerShare ||
+                    0
+                  );
+
+              return (
+                sum +
+                (
+                  invested *
+                  roi
+                ) / 100
+              );
+            },
+            0
+          ) / totalInvested
         : 0;
 
-        console.log("========== PORTFOLIO DEBUG ==========");
-console.log("Property:", p.name);
-console.log("Shares Purchased:", inv.shares);
-console.log("Total Shares:", p.totalShares);
-console.log("Ownership:", ownership);
-console.log("=====================================");
+    // ==========================================
+    // RESPONSE
+    // ==========================================
 
-      const rentalYield = p.rentalYield || 0;
-      const rentalIncome = (invested * rentalYield) / 100;
+    return res.json({
 
-      totalInvested += invested;
-      totalCurrentValue += currentValue;
-      totalShares += inv.shares;
-      totalRental += rentalIncome;
-
-      return {
-        investmentId: inv._id,
-        propertyId: p._id,
-        propertyName: p.name,
-        location: p.location?.city,
-        shares: inv.shares,
-        invested,
-        currentValue,
-        roi: p.roi || 0,
-        ownership: Number(ownership.toFixed(1)),
-        profit,
-        rentalYield,
-        incomeReceived: rentalIncome,
-        image: p.media?.images?.[0] || null,
-      
-        documents: p.media?.documents || [], // ✅ ADD
-      };
-    });
-
-    const expectedReturn = totalInvested
-  ? validInvestments.reduce((sum, inv) => {
-      const roi = inv.propertyId?.roi || 0;
-      const invested =
-        inv.amount ||
-        inv.shares *
-          (inv.pricePerShare || inv.propertyId?.pricePerShare || 0);
-
-      return sum + (invested * roi) / 100;
-    }, 0) / totalInvested
-  : 0;
-
-    res.json({
       summary: {
         totalInvested,
-        currentValue: totalCurrentValue,
-        sharesOwned: totalShares,
-        expectedReturn: Number(expectedReturn.toFixed(1)),
-        rentalIncome: totalRental,
+        currentValue:
+          totalCurrentValue,
+        sharesOwned:
+          totalShares,
+        expectedReturn:
+          Number(
+            expectedReturn.toFixed(1)
+          ),
+        rentalIncome:
+          totalRental,
       },
-      investments: items,
+
+      // APPROVED INVESTMENTS
+      investments:
+        items,
+
+      // PENDING INVESTMENTS
+      pendingInvestments:
+        pendingItems,
     });
+
   } catch (err) {
-    res.status(500).json({ error: err.message });
+
+    console.error(
+      "GET PORTFOLIO ERROR:",
+      err
+    );
+
+    return res.status(500).json({
+      error:
+        err.message,
+    });
   }
 };
 
@@ -145,18 +366,108 @@ exports.createPayment = async (req, res) => {
 };
 
 exports.getPaymentHistory = async (req, res) => {
-  const payments = await Payment.find({ userId: req.user.id })
-    .populate("propertyId", "name")
-    .sort({ createdAt: -1 });
+  try {
+    const userId = req.user.id;
 
-  res.json(
-    payments.map(p => ({
-      name: p.propertyId?.name,
-      amount: p.amount,
-      date: p.createdAt,
-      status: p.status,
-    }))
-  );
+    const payments = await Investment.find({
+      userId,
+    })
+      .populate(
+        "propertyId",
+        "name location media pricePerShare"
+      )
+      .sort({ createdAt: -1 });
+
+    const formattedPayments = payments.map((investment) => {
+
+      const property = investment.propertyId;
+
+      return {
+        paymentId: investment._id,
+
+        // ================= PROPERTY =================
+
+        propertyId: property?._id || null,
+
+        propertyName:
+          property?.name || "Property",
+
+        location:
+          property?.location?.city || "",
+
+        image:
+          property?.media?.images?.[0] || null,
+
+
+        // ================= PAYMENT =================
+
+        amount:
+          investment.amount ||
+          investment.requestedAmount ||
+          0,
+
+        shares:
+          investment.shares ||
+          investment.requestedShares ||
+          0,
+
+        pricePerShare:
+          investment.pricePerShare ||
+          property?.pricePerShare ||
+          0,
+
+
+        // ================= STATUS =================
+
+        investmentStatus:
+          investment.status || "pending",
+
+        paymentStatus:
+          investment.paymentStatus || "pending",
+
+
+        // ================= DATE =================
+
+        date:
+          investment.createdAt,
+
+
+        // ================= MESSAGE =================
+
+        message:
+          `You paid ₹${
+            (
+              investment.amount ||
+              investment.requestedAmount ||
+              0
+            ).toLocaleString("en-IN")
+          } for ${
+            investment.shares ||
+            investment.requestedShares ||
+            0
+          } shares`,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      payments: formattedPayments,
+    });
+
+  } catch (error) {
+
+    console.error(
+      "GET PAYMENT HISTORY ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        error.message ||
+        "Failed to fetch payment history",
+    });
+  }
 };
 
 exports.getDocuments = async (req, res) => {
@@ -225,17 +536,36 @@ exports.createExitRequest = async (req, res) => {
   try {
     const { investmentId, shares } = req.body;
 
-    if (!investmentId || !shares) {
+    // ==========================================
+    // 1. BASIC VALIDATION
+    // ==========================================
+
+    if (!investmentId || shares === undefined) {
       return res.status(400).json({
         message: "Investment ID and shares are required",
       });
     }
 
+    const requestedShares = Number(shares);
+
+    if (
+      !Number.isInteger(requestedShares) ||
+      requestedShares <= 0
+    ) {
+      return res.status(400).json({
+        message: "Invalid share quantity",
+      });
+    }
+
+    // ==========================================
+    // 2. FIND INVESTMENT
+    // ==========================================
+
     const investment = await Investment.findOne({
       _id: investmentId,
       userId: req.user.id,
       status: "approved",
-    });
+    }).populate("propertyId");
 
     if (!investment) {
       return res.status(404).json({
@@ -243,20 +573,107 @@ exports.createExitRequest = async (req, res) => {
       });
     }
 
-    // User requested more shares than owned
-    if (Number(shares) > investment.shares) {
-      return res.status(400).json({
-        message: "You cannot exit more shares than you own",
+    const property = investment.propertyId;
+
+    if (!property) {
+      return res.status(404).json({
+        message: "Property not found",
       });
     }
 
-    if (Number(shares) <= 0) {
+    // ==========================================
+    // 3. LOCK-IN CHECK
+    // ==========================================
+
+    let eligibleExitDate = investment.eligibleExitDate;
+
+    // If eligibleExitDate doesn't exist,
+    // calculate it from lockInStartDate / createdAt
+    if (!eligibleExitDate) {
+      const startDate =
+        investment.lockInStartDate ||
+        investment.createdAt;
+
+      eligibleExitDate = new Date(startDate);
+
+      eligibleExitDate.setFullYear(
+        eligibleExitDate.getFullYear() +
+          Number(investment.lockInYears || 2)
+      );
+    }
+
+    const now = new Date();
+
+    if (now < eligibleExitDate) {
       return res.status(400).json({
-        message: "Invalid share quantity",
+        message:
+          "Investment is still under lock-in period",
+        eligibleExitDate,
       });
     }
 
-    // Prevent duplicate pending request
+    // ==========================================
+    // 4. CHECK OWNED SHARES
+    // ==========================================
+
+    const ownedShares = Number(investment.shares || 0);
+
+    if (requestedShares > ownedShares) {
+      return res.status(400).json({
+        message:
+          `You can exit maximum ${ownedShares} shares`,
+      });
+    }
+
+    // ==========================================
+    // 5. SHARE BUYING CYCLE
+    // ==========================================
+
+    const shareCycle =
+      Number(
+        investment.shareBuyingCycle ||
+        property.shareBuyingCycle ||
+        10
+      );
+
+    if (![5, 10].includes(shareCycle)) {
+      return res.status(400).json({
+        message: "Invalid share buying cycle",
+      });
+    }
+
+    /*
+      Cycle 10:
+      10, 20, 30, 40...
+
+      Cycle 5:
+      5, 10, 15, 20...
+    */
+
+    if (
+      shareCycle === 10 &&
+      requestedShares % 10 !== 0
+    ) {
+      return res.status(400).json({
+        message:
+          "This property allows exits in multiples of 10 shares",
+      });
+    }
+
+    if (
+      shareCycle === 5 &&
+      requestedShares % 5 !== 0
+    ) {
+      return res.status(400).json({
+        message:
+          "This property allows exits in multiples of 5 shares",
+      });
+    }
+
+    // ==========================================
+    // 6. PREVENT DUPLICATE PENDING REQUEST
+    // ==========================================
+
     const pendingExit = await Exit.findOne({
       investmentId: investment._id,
       status: "pending",
@@ -264,37 +681,84 @@ exports.createExitRequest = async (req, res) => {
 
     if (pendingExit) {
       return res.status(400).json({
-        message: "Exit request already pending for this investment",
+        message:
+          "Exit request already pending for this investment",
       });
     }
 
-    // Calculate amount according to investment price
-    const pricePerShare = investment.amount / investment.shares;
+    // ==========================================
+    // 7. PRICE PER SHARE
+    // ==========================================
 
-    const exitAmount = Number(shares) * pricePerShare;
+    const pricePerShare =
+      Number(
+        investment.pricePerShare ||
+        property.pricePerShare ||
+        property.currentPricePerShare ||
+        0
+      );
+
+    if (pricePerShare <= 0) {
+      return res.status(400).json({
+        message: "Invalid price per share",
+      });
+    }
+
+    // ==========================================
+    // 8. AUTOMATIC EXIT AMOUNT
+    // ==========================================
+
+    const exitAmount =
+      requestedShares * pricePerShare;
+
+    // ==========================================
+    // 9. CREATE EXIT REQUEST
+    // ==========================================
 
     const exit = await Exit.create({
       userId: req.user.id,
 
       investmentId: investment._id,
 
-      propertyId: investment.propertyId,
+      propertyId: property._id,
 
-      shares: Number(shares),
+      shares: requestedShares,
 
       amount: exitAmount,
 
       status: "pending",
     });
 
-    res.json({
-      message: "Exit request submitted successfully",
-      exit,
+    // ==========================================
+    // 10. RESPONSE
+    // ==========================================
+
+    return res.json({
+      message:
+        "Exit request submitted successfully",
+
+      exit: {
+        _id: exit._id,
+        investmentId: exit.investmentId,
+        propertyId: exit.propertyId,
+        shares: exit.shares,
+        amount: exit.amount,
+        status: exit.status,
+      },
+
+      eligibleExitDate,
     });
 
   } catch (err) {
-    res.status(500).json({
-      error: err.message,
+    console.error(
+      "CREATE EXIT REQUEST ERROR:",
+      err
+    );
+
+    return res.status(500).json({
+      message:
+        err.message ||
+        "Failed to create exit request",
     });
   }
 };

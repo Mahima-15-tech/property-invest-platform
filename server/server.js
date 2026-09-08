@@ -23,7 +23,9 @@ const kycRoutes = require("./routes/kycRoutes");
 const paymentRoutes = require("./routes/paymentroute");
 const contactRoutes = require("./routes/contactRoutes");
 const profileRoutes = require("./routes/profileRoutes");
-
+const ownershipRoutes = require("./routes/ownershipRoutes");
+const dashboardRoutes = require("./routes/dashboardRoutes");
+const blogRoutes = require("./routes/blogRoutes");
 // 🔥 DB connect
 connectDB();
 
@@ -69,6 +71,12 @@ app.use("/api/kyc", kycRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api", profileRoutes);
+app.use("/api/ownership", ownershipRoutes);
+app.use("/api/blogs", blogRoutes);
+app.use(
+  "/api/dashboard",
+  dashboardRoutes
+);
 
 // test route
 app.get("/test", (req, res) => {

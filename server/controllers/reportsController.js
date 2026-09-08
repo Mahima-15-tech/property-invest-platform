@@ -1,167 +1,599 @@
 const Investment = require("../models/investment");
 const Property = require("../models/property");
 const User = require("../models/user");
+const Commission = require("../models/commission");
 
 exports.getDashboardReport = async (req, res) => {
   try {
-    // 🔥 SUMMARY DATA
-    const investments = await Investment.find({ status: "completed" });
-    const properties = await Property.find();
-    const investors = await User.find({ role: "investor" });
+    const period = req.query.period || "6months";
 
-    const totalRevenue = investments.reduce((sum, i) => sum + i.amount, 0);
+    // =====================================================
+    // DATE RANGE
+    // =====================================================
 
-    const fundedProperties = properties.filter(
-      (p) => p.availableShares === 0
-    ).length;
+    const now = new Date();
 
-    const last30Days = new Date();
-    last30Days.setDate(last30Days.getDate() - 30);
+    const startDate = new Date(now);
 
-    const newInvestors = investors.filter(
-      (i) => i.createdAt >= last30Days
-    ).length;
+    if (period === "1month") {
+      startDate.setMonth(startDate.getMonth() - 1);
+    } else if (period === "3months") {
+      startDate.setMonth(startDate.getMonth() - 3);
+    } else if (period === "1year") {
+      startDate.setFullYear(startDate.getFullYear() - 1);
+    } else {
+      // Default = 6 months
+      startDate.setMonth(startDate.getMonth() - 6);
+    }
 
-    const avgROI =
-      properties.length > 0
-        ? (
-            properties.reduce((sum, p) => sum + (p.roi || 0), 0) /
-            properties.length
-          ).toFixed(1)
+    // =====================================================
+    // BASE FILTERS
+    // =====================================================
+
+    const investmentDateFilter = {
+      createdAt: {
+        $gte: startDate,
+        $lte: now,
+      },
+    };
+
+    const investorDateFilter = {
+      createdAt: {
+        $gte: startDate,
+        $lte: now,
+      },
+    };
+
+    const propertyDateFilter = {
+      createdAt: {
+        $gte: startDate,
+        $lte: now,
+      },
+    };
+
+    // =====================================================
+    // SUMMARY
+    // =====================================================
+
+    const approvedInvestments =
+      await Investment.find({
+        status: "approved",
+        ...investmentDateFilter,
+      });
+
+    const allInvestors =
+      await User.countDocuments({
+        role: "investor",
+      });
+
+    const newInvestors =
+      await User.countDocuments({
+        role: "investor",
+        ...investorDateFilter,
+      });
+
+    const fundedProperties =
+      await Property.countDocuments({
+        isPublished: true,
+        isDeleted: { $ne: true },
+        status: "funded",
+      });
+
+    const activeProperties =
+      await Property.countDocuments({
+        isPublished: true,
+        isDeleted: { $ne: true },
+        status: "funding",
+      });
+
+    // =====================================================
+    // INVESTMENT VOLUME
+    // =====================================================
+
+    const investmentVolume =
+      approvedInvestments.reduce(
+        (sum, investment) =>
+          sum +
+          Number(
+            investment.approvedAmount ||
+              investment.finalAmount ||
+              investment.amount ||
+              0
+          ),
+        0
+      );
+
+    // =====================================================
+    // PLATFORM REVENUE
+    // =====================================================
+
+    const commissionAgg =
+      await Commission.aggregate([
+        {
+          $match: {
+            createdAt: {
+              $gte: startDate,
+              $lte: now,
+            },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            total: {
+              $sum: {
+                $ifNull: [
+                  "$commissionAmount",
+                  "$amount",
+                ],
+              },
+            },
+          },
+        },
+      ]);
+
+    const totalRevenue =
+      Number(
+        commissionAgg[0]?.total || 0
+      );
+
+    // =====================================================
+    // AVG ROI
+    // =====================================================
+
+    const roiAgg =
+      await Property.aggregate([
+        {
+          $match: {
+            isPublished: true,
+            isDeleted: { $ne: true },
+            roi: { $gte: 0 },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            avgROI: {
+              $avg: "$roi",
+            },
+          },
+        },
+      ]);
+
+    const avgROI = Number(
+      roiAgg[0]?.avgROI || 0
+    ).toFixed(1);
+
+    // =====================================================
+    // CONVERSION RATE
+    // =====================================================
+
+    const approvedInvestorIds =
+      await Investment.distinct(
+        "userId",
+        {
+          status: "approved",
+          userId: { $ne: null },
+        }
+      );
+
+    const conversionRate =
+      allInvestors > 0
+        ? Number(
+            (
+              (approvedInvestorIds.length /
+                allInvestors) *
+              100
+            ).toFixed(2)
+          )
         : 0;
 
-    // 🔥 MONTH NAMES
-    const monthNames = [
-      "Jan","Feb","Mar","Apr","May","Jun",
-      "Jul","Aug","Sep","Oct","Nov","Dec"
-    ];
+    // =====================================================
+    // MONTH RANGE
+    // =====================================================
 
-    // ============================
-    // 📊 REVENUE (REAL)
-    // ============================
-    const revenueAgg = await Investment.aggregate([
-      { $match: { status: "completed" } },
-      {
-        $group: {
-          _id: { $month: "$createdAt" },
-          revenue: { $sum: "$amount" },
+    const months = [];
+
+    const cursor = new Date(startDate);
+
+    cursor.setDate(1);
+    cursor.setHours(0, 0, 0, 0);
+
+    while (cursor <= now) {
+      months.push({
+        year: cursor.getFullYear(),
+        month: cursor.getMonth() + 1,
+        label: cursor.toLocaleString(
+          "en-IN",
+          { month: "short" }
+        ),
+      });
+
+      cursor.setMonth(
+        cursor.getMonth() + 1
+      );
+    }
+
+    // =====================================================
+    // REVENUE + INVESTMENT VOLUME
+    // =====================================================
+
+    const revenueAgg =
+      await Investment.aggregate([
+        {
+          $match: {
+            status: "approved",
+            ...investmentDateFilter,
+          },
         },
-      },
-    ]);
+        {
+          $group: {
+            _id: {
+              year: {
+                $year: "$createdAt",
+              },
+              month: {
+                $month: "$createdAt",
+              },
+            },
+
+            investmentVolume: {
+              $sum: {
+                $ifNull: [
+                  "$approvedAmount",
+                  {
+                    $ifNull: [
+                      "$finalAmount",
+                      "$amount",
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      ]);
+
+    const commissionMonthlyAgg =
+      await Commission.aggregate([
+        {
+          $match: {
+            ...investmentDateFilter,
+          },
+        },
+        {
+          $group: {
+            _id: {
+              year: {
+                $year: "$createdAt",
+              },
+              month: {
+                $month: "$createdAt",
+              },
+            },
+
+            revenue: {
+              $sum: {
+                $ifNull: [
+                  "$commissionAmount",
+                  "$amount",
+                ],
+              },
+            },
+          },
+        },
+      ]);
 
     const revenueMap = {};
-    revenueAgg.forEach((r) => {
-      revenueMap[r._id] = r.revenue;
-    });
 
-    const revenueData = monthNames.map((m, i) => {
-      const revenue = revenueMap[i + 1] || 0;
-      return {
-        month: m,
-        revenue,
-        target: Math.round(revenue * 0.9), // 🔥 simple target logic
+    revenueAgg.forEach((item) => {
+      const key = `${item._id.year}-${item._id.month}`;
+
+      revenueMap[key] = {
+        ...(revenueMap[key] || {}),
+        investmentVolume:
+          Number(
+            item.investmentVolume || 0
+          ),
       };
     });
 
-    // ============================
-    // 📊 FUNDING ACTIVITY
-    // ============================
-    const fundingAgg = await Property.aggregate([
-      {
-        $group: {
-          _id: { $month: "$createdAt" },
-          funded: {
-            $sum: {
-              $cond: [{ $eq: ["$availableShares", 0] }, 1, 0],
-            },
+    commissionMonthlyAgg.forEach(
+      (item) => {
+        const key = `${item._id.year}-${item._id.month}`;
+
+        revenueMap[key] = {
+          ...(revenueMap[key] || {}),
+          revenue: Number(
+            item.revenue || 0
+          ),
+        };
+      }
+    );
+
+    const revenueData =
+      months.map((item) => {
+        const key = `${item.year}-${item.month}`;
+
+        return {
+          month: item.label,
+          revenue:
+            revenueMap[key]?.revenue || 0,
+          investmentVolume:
+            revenueMap[key]
+              ?.investmentVolume || 0,
+        };
+      });
+
+    // =====================================================
+    // FUNDING ACTIVITY
+    // =====================================================
+
+    const fundingAgg =
+      await Property.aggregate([
+        {
+          $match: {
+            isPublished: true,
+            isDeleted: { $ne: true },
+            ...propertyDateFilter,
           },
-          active: {
-            $sum: {
-              $cond: [{ $gt: ["$availableShares", 0] }, 1, 0],
+        },
+        {
+          $group: {
+            _id: {
+              year: {
+                $year: "$createdAt",
+              },
+              month: {
+                $month: "$createdAt",
+              },
+            },
+
+            funded: {
+              $sum: {
+                $cond: [
+                  {
+                    $eq: [
+                      "$status",
+                      "funded",
+                    ],
+                  },
+                  1,
+                  0,
+                ],
+              },
+            },
+
+            active: {
+              $sum: {
+                $cond: [
+                  {
+                    $eq: [
+                      "$status",
+                      "funding",
+                    ],
+                  },
+                  1,
+                  0,
+                ],
+              },
             },
           },
         },
-      },
-    ]);
+      ]);
 
     const fundingMap = {};
-    fundingAgg.forEach((f) => {
-      fundingMap[f._id] = {
-        funded: f.funded,
-        active: f.active,
+
+    fundingAgg.forEach((item) => {
+      const key = `${item._id.year}-${item._id.month}`;
+
+      fundingMap[key] = {
+        funded:
+          Number(item.funded || 0),
+        active:
+          Number(item.active || 0),
       };
     });
 
-    const fundingData = monthNames.map((m, i) => ({
-      month: m,
-      funded: fundingMap[i + 1]?.funded || 0,
-      active: fundingMap[i + 1]?.active || 0,
-    }));
+    const fundingData =
+      months.map((item) => {
+        const key = `${item.year}-${item.month}`;
 
-    // ============================
-    // 📊 PLATFORM GROWTH
-    // ============================
-    const investorAgg = await User.aggregate([
-      { $match: { role: "investor" } },
-      {
-        $group: {
-          _id: { $month: "$createdAt" },
-          investors: { $sum: 1 },
-        },
-      },
-    ]);
+        return {
+          month: item.label,
+          funded:
+            fundingMap[key]?.funded || 0,
+          active:
+            fundingMap[key]?.active || 0,
+        };
+      });
 
-    const propertyAgg = await Property.aggregate([
-      {
-        $group: {
-          _id: { $month: "$createdAt" },
-          properties: { $sum: 1 },
+    // =====================================================
+    // INVESTOR + PROPERTY GROWTH
+    // =====================================================
+
+    const investorAgg =
+      await User.aggregate([
+        {
+          $match: {
+            role: "investor",
+            ...investorDateFilter,
+          },
         },
-      },
-    ]);
+        {
+          $group: {
+            _id: {
+              year: {
+                $year: "$createdAt",
+              },
+              month: {
+                $month: "$createdAt",
+              },
+            },
+
+            investors: {
+              $sum: 1,
+            },
+          },
+        },
+      ]);
+
+    const propertyAgg =
+      await Property.aggregate([
+        {
+          $match: {
+            isPublished: true,
+            isDeleted: { $ne: true },
+            ...propertyDateFilter,
+          },
+        },
+        {
+          $group: {
+            _id: {
+              year: {
+                $year: "$createdAt",
+              },
+              month: {
+                $month: "$createdAt",
+              },
+            },
+
+            properties: {
+              $sum: 1,
+            },
+          },
+        },
+      ]);
 
     const growthMap = {};
 
-    investorAgg.forEach((i) => {
-      growthMap[i._id] = {
-        investors: i.investors,
-        properties: 0,
+    investorAgg.forEach((item) => {
+      const key = `${item._id.year}-${item._id.month}`;
+
+      growthMap[key] = {
+        ...(growthMap[key] || {}),
+        investors:
+          Number(item.investors || 0),
       };
     });
 
-    propertyAgg.forEach((p) => {
-      if (!growthMap[p._id]) {
-        growthMap[p._id] = {
-          investors: 0,
-          properties: p.properties,
-        };
-      } else {
-        growthMap[p._id].properties = p.properties;
-      }
+    propertyAgg.forEach((item) => {
+      const key = `${item._id.year}-${item._id.month}`;
+
+      growthMap[key] = {
+        ...(growthMap[key] || {}),
+        properties:
+          Number(item.properties || 0),
+      };
     });
 
-    const growthData = monthNames.map((m, i) => ({
-      month: m,
-      investors: growthMap[i + 1]?.investors || 0,
-      properties: growthMap[i + 1]?.properties || 0,
-    }));
+    const growthData =
+      months.map((item) => {
+        const key = `${item.year}-${item.month}`;
 
-    // ============================
-    // 🚀 FINAL RESPONSE
-    // ============================
-    res.json({
+        return {
+          month: item.label,
+          investors:
+            growthMap[key]?.investors || 0,
+          properties:
+            growthMap[key]?.properties || 0,
+        };
+      });
+
+    // =====================================================
+    // PROPERTY PERFORMANCE
+    // =====================================================
+
+    const propertyPerformance =
+      await Property.find({
+        isPublished: true,
+        isDeleted: { $ne: true },
+      })
+        .sort({
+          investedAmount: -1,
+          createdAt: -1,
+        })
+        .limit(10)
+        .select(
+          "_id name totalValue investedAmount soldPercent investors roi status media"
+        );
+
+    const formattedPropertyPerformance =
+      propertyPerformance.map(
+        (property) => ({
+          _id: property._id,
+          name: property.name,
+
+          totalValue:
+            Number(
+              property.totalValue || 0
+            ),
+
+          investedAmount:
+            Number(
+              property.investedAmount || 0
+            ),
+
+          fundedPercent:
+            Number(
+              property.soldPercent || 0
+            ),
+
+          investors:
+            Number(
+              property.investors || 0
+            ),
+
+          roi:
+            Number(property.roi || 0),
+
+          status:
+            property.status,
+
+          image:
+            property.media?.images?.[0] ||
+            "",
+        })
+      );
+
+    // =====================================================
+    // FINAL RESPONSE
+    // =====================================================
+
+    return res.json({
+      success: true,
+
+      period,
+
       summary: {
         totalRevenue,
+        investmentVolume,
         fundedProperties,
         newInvestors,
-        avgROI,
+        avgROI: Number(avgROI),
+        activeProperties,
+        totalInvestors: allInvestors,
+        conversionRate,
       },
-      revenueData,
-      fundingData,
-      growthData,
-    });
 
+      revenueData,
+
+      fundingData,
+
+      growthData,
+
+      propertyPerformance:
+        formattedPropertyPerformance,
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(
+      "REPORTS ERROR:",
+      err
+    );
+
+    return res.status(500).json({
+      success: false,
+      error: err.message,
+    });
   }
 };

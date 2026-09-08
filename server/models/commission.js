@@ -27,7 +27,15 @@ const commissionSchema = new mongoose.Schema({
     type: String,
     enum: ["sale", "referral", "performance"],
   },
+  commissionRate: {
+    type: Number,
+  },
 
+  investmentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Investment",
+    unique: true,
+  },
   
   amount: Number,
   commissionAmount: Number,

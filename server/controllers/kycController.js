@@ -122,20 +122,80 @@ exports.saveBank = async (req, res) => {
   };
 
   exports.submitKyc = async (req, res) => {
-    const kyc = await KYC.findOne({ userId: req.user.id });
+    try {
+      const kyc = await KYC.findOne({
+        userId: req.user.id,
+      });
   
-    kyc.status = "submitted";
-    kyc.approvalStatus = "pending";
+      // ==========================================
+      // 1. KYC RECORD CHECK
+      // ==========================================
   
-    await kyc.save();
+      if (!kyc) {
+        return res.status(400).json({
+          message: "Please complete KYC first",
+        });
+      }
   
-    await User.findByIdAndUpdate(req.user.id, {
-      kycStatus: "pending",
-    });
+      // ==========================================
+      // 2. REQUIRED KYC DATA CHECK
+      // ==========================================
   
-    res.json({
-      message: "KYC submitted successfully",
-      status: kyc.status,
-      approvalStatus: kyc.approvalStatus,
-    });
+      if (
+        !kyc.fullName ||
+        !kyc.email ||
+        !kyc.dob ||
+        !kyc.address ||
+      
+        !kyc.panNumber ||
+        !kyc.panFile ||
+      
+        !kyc.aadhaarNumber ||
+        !kyc.aadhaarFile ||
+      
+        !kyc.nominee?.name ||
+        !kyc.nominee?.panNumber ||
+        !kyc.nominee?.aadhaarNumber ||
+        !kyc.nominee?.dob ||
+      
+        !kyc.bank?.beneficiaryName ||
+        !kyc.bank?.accountNumber ||
+        !kyc.bank?.ifsc ||
+        !kyc.bank?.branch
+      ) {
+        return res.status(400).json({
+          message: "Please complete all KYC details before submitting",
+        });
+      }
+  
+      // ==========================================
+      // 3. SUBMIT KYC
+      // ==========================================
+  
+      kyc.status = "submitted";
+      kyc.approvalStatus = "pending";
+  
+      await kyc.save();
+  
+      // ==========================================
+      // 4. UPDATE USER STATUS
+      // ==========================================
+  
+      await User.findByIdAndUpdate(req.user.id, {
+        kycStatus: "pending",
+      });
+  
+      res.json({
+        message: "KYC submitted successfully",
+        status: kyc.status,
+        approvalStatus: kyc.approvalStatus,
+      });
+  
+    } catch (error) {
+      console.error("SUBMIT KYC ERROR:", error);
+  
+      res.status(500).json({
+        message: error.message,
+      });
+    }
   };

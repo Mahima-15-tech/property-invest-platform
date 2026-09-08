@@ -38,10 +38,10 @@ const exitSchema = new mongoose.Schema(
 
     remarks:String,
 
-    approvedBy:{
-        type:mongoose.Schema.Types.ObjectId,
-        ref:"Admin"
-    },
+    approvedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User"
+      },
 
     processedBy: {
       type: mongoose.Schema.Types.ObjectId,

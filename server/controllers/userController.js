@@ -34,17 +34,30 @@ exports.getKycStatus = async (req, res) => {
 
 
 // GET ALL INVESTORS (ADMIN)
+// GET ALL INVESTORS (ADMIN)
 exports.getAllInvestors = async (req, res) => {
   try {
+    // ==========================================
+    // PAGINATION
+    // ==========================================
+
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = 10;
+    const skip = (page - 1) * limit;
+
+    // ==========================================
+    // GET ALL INVESTMENTS
+    // Latest investment of each investor
+    // ==========================================
 
     const investments = await Investment.find()
       .populate("userId")
-      .populate("propertyId");
+      .populate("propertyId")
+      .sort({ createdAt: -1 });
 
     const map = new Map();
 
     for (const inv of investments) {
-
       if (!inv.userId) continue;
 
       const id = inv.userId._id.toString();
@@ -57,36 +70,111 @@ exports.getAllInvestors = async (req, res) => {
           phone: inv.userId.phone,
           kycStatus: inv.userId.kycStatus,
           joinDate: inv.userId.createdAt,
+
           totalInvested: 0,
           properties: new Set(),
+
+          // Latest investment date
+          latestInvestmentDate: inv.createdAt,
         });
       }
 
       const user = map.get(id);
 
-      user.totalInvested += inv.amount;
-      user.properties.add(inv.propertyId?._id.toString());
+      // Total investment
+      user.totalInvested += inv.amount || 0;
+
+      // Unique properties
+      if (inv.propertyId?._id) {
+        user.properties.add(
+          inv.propertyId._id.toString()
+        );
+      }
+
+      // Since investments are already sorted newest first,
+      // first investment encountered is the latest one.
+      if (
+        !user.latestInvestmentDate ||
+        new Date(inv.createdAt) >
+          new Date(user.latestInvestmentDate)
+      ) {
+        user.latestInvestmentDate = inv.createdAt;
+      }
     }
 
-    const data = [...map.values()].map((u) => ({
+    // ==========================================
+    // SORT INVESTORS BY LATEST INVESTMENT
+    // ==========================================
+
+    const allInvestors = [...map.values()].sort(
+      (a, b) =>
+        new Date(b.latestInvestmentDate) -
+        new Date(a.latestInvestmentDate)
+    );
+
+    // ==========================================
+    // TOTAL INVESTORS
+    // ==========================================
+
+    const total = allInvestors.length;
+
+    const totalPages = Math.ceil(total / limit);
+
+    // ==========================================
+    // PAGINATE
+    // ==========================================
+
+    const paginatedInvestors = allInvestors.slice(
+      skip,
+      skip + limit
+    );
+
+    // ==========================================
+    // FORMAT RESPONSE
+    // ==========================================
+
+    const data = paginatedInvestors.map((u) => ({
       _id: u._id,
       name: u.name,
       email: u.email,
       phone: u.phone,
       kycStatus: u.kycStatus,
-      totalInvested: `₹${u.totalInvested}`,
+
+      totalInvested: `₹${u.totalInvested.toLocaleString(
+        "en-IN"
+      )}`,
+
       properties: u.properties.size,
+
       avgROI: "12%",
+
       joinDate: u.joinDate,
+
+      // Frontend ko latest investment date bhi milegi
+      latestInvestmentDate:
+        u.latestInvestmentDate,
     }));
+
+    // ==========================================
+    // RESPONSE
+    // ==========================================
 
     res.json({
       data,
-      totalPages: 1,
-      currentPage: 1,
+
+      total,
+      totalPages,
+      currentPage: page,
+
+      limit,
     });
 
   } catch (err) {
+    console.error(
+      "GET ALL INVESTORS ERROR:",
+      err
+    );
+
     res.status(500).json({
       error: err.message,
     });
@@ -118,7 +206,9 @@ exports.getInvestorDetails = async (req, res) => {
 
     const investments = await Investment.find({
       userId: req.params.id,
-    }).populate("propertyId");
+    })
+      .populate("propertyId")
+      .sort({ createdAt: -1 });
 
     const KYC = require("../models/kyc");
 
@@ -370,6 +460,84 @@ exports.getWatchlist = async (req, res) => {
     });
 
   } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// ==========================================
+// INVESTOR REFERRAL DETAILS
+// ==========================================
+
+exports.getMyReferralDetails = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id)
+      .select("name email role referralCode referredBy referralCodeUsed")
+      .populate("referredBy", "name email referralCode");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (user.role !== "investor") {
+      return res.status(403).json({
+        success: false,
+        message: "Referral program is available for investors only",
+      });
+    }
+
+    const frontendUrl =
+      process.env.FRONTEND_URL || "http://localhost:5173";
+
+      const referralLink = user.referralCode
+      ? `${frontendUrl}/signup?ref=${user.referralCode}`
+      : null;
+
+    res.json({
+      success: true,
+      referralCode: user.referralCode || null,
+      referralLink,
+      referredBy: user.referredBy || null,
+    });
+  } catch (error) {
+    console.error("GET MY REFERRAL DETAILS ERROR:", error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
+// ==========================================
+// INVESTOR REFERRAL REWARD HISTORY
+// ==========================================
+
+exports.getMyReferralRewards = async (req, res) => {
+  try {
+    const ReferralReward = require("../models/referralReward");
+
+    const rewards = await ReferralReward.find({
+      referrer: req.user.id,
+    })
+      .populate("referredInvestor", "name email")
+      .populate("investmentId", "shares amount approvedAmount status")
+      .populate("propertyId", "name")
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      rewards,
+    });
+  } catch (error) {
+    console.error("GET MY REFERRAL REWARDS ERROR:", error);
+
     res.status(500).json({
       success: false,
       message: error.message,

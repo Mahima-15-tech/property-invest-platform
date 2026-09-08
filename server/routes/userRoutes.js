@@ -30,4 +30,20 @@ router.get(
   user.getWatchlist
 );
 
+// ==========================================
+// INVESTOR REFERRAL
+// ==========================================
+
+router.get(
+  "/referral",
+  protect,
+  user.getMyReferralDetails
+);
+
+router.get(
+  "/referral/rewards",
+  protect,
+  user.getMyReferralRewards
+);
+
 module.exports = router;

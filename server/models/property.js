@@ -22,19 +22,70 @@ const propertySchema = new mongoose.Schema(
     },
 
     // 💰 INVESTMENT
-    totalValue: Number,
-    totalShares: Number,
-    soldShares: {
-      type: Number,
-      default: 0,
-    },
+    // 💰 INVESTMENT
+totalValue: Number,
+
+// Total shares of complete property
+totalShares: Number,
+
+// Company ke fixed/reserved shares
+companyReservedShares: {
+  type: Number,
+  default: 10,
+},
+
+// Public investors ke liye available shares
+publicAvailableShares: Number,
+
+// Share purchase cycle for this property
+// 5 cycle → 10, 15, 20, 25...
+// 10 cycle → 10, 20, 30, 40...
+shareBuyingCycle: {
+  type: Number,
+  enum: [5, 10],
+  default: 10,
+},
+
+// Fixed business rule
+// 10 shares = 1 stakeholder
+stakeholderUnit: {
+  type: Number,
+  default: 10,
+},
+
+// Lock-in period in years
+lockInYears: {
+  type: Number,
+  default: 2,
+},
+
+// Can investor request 100% ownership?
+enableFullOwnership: {
+  type: Boolean,
+  default: false,
+},
+
+soldShares: {
+  type: Number,
+  default: 0,
+},
+
+isDeleted: {
+  type: Boolean,
+  default: false,
+},
+
+deletedAt: {
+  type: Date,
+  default: null,
+},
     
     
-    status: {
-      type: String,
-      enum: ["funding", "funded"],
-      default: "funding",
-    },
+status: {
+  type: String,
+  enum: ["available", "funding", "funded"],
+  default: "funding",
+},
     availableShares: Number,
     pricePerShare: Number,
     currentPricePerShare: Number,
@@ -103,6 +154,8 @@ const propertySchema = new mongoose.Schema(
         },
       ],
     },
+
+    
 
    
 

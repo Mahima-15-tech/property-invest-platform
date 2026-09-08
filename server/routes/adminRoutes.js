@@ -4,14 +4,37 @@ const router = express.Router();
 const admin = require("../controllers/adminController");
 const protect = require("../middleware/authmiddleware");
 const authorize = require("../middleware/roleMiddleware");
+const {
+  uploadPaymentQR,
+} = require("../middleware/upload");
 
 router.post("/login", admin.adminLogin);
+
+
 
 router.patch(
   "/approve-broker/:id",
   protect,
   authorize("admin"),
   admin.approveBroker
+);
+
+// ==========================
+// REFERRAL PROGRAM
+// ==========================
+
+router.get(
+  "/referral-program",
+  protect,
+  authorize("admin"),
+  admin.getReferralProgram
+);
+
+router.put(
+  "/referral-program",
+  protect,
+  authorize("admin"),
+  admin.updateReferralProgram
 );
 
 router.patch(
@@ -26,6 +49,45 @@ router.patch(
   protect,
   authorize("admin"),
   admin.rejectKyc
+);
+
+// ==========================
+// PAYMENT SETTINGS
+// ==========================
+
+// Get current payment settings
+router.get(
+  "/payment-settings",
+  protect,
+  authorize("admin"),
+  admin.getPaymentSettings
+);
+
+// Update payment settings + QR
+router.put(
+  "/payment-settings",
+  protect,
+  authorize("admin"),
+  uploadPaymentQR,
+  admin.updatePaymentSettings
+);
+
+// ==========================
+// PAYMENT VERIFICATION
+// ==========================
+
+router.put(
+  "/investments/:id/verify-payment",
+  protect,
+  authorize("admin"),
+  admin.verifyInvestmentPayment
+);
+
+router.put(
+  "/investments/:id/reject-payment",
+  protect,
+  authorize("admin"),
+  admin.rejectInvestmentPayment
 );
 
 router.put(
@@ -85,6 +147,70 @@ router.put(
   protect,
   authorize("admin"),
   admin.rejectExit
+);
+
+// ==========================
+// REFERRAL REWARDS
+// ==========================
+
+router.get(
+  "/referral-rewards",
+  protect,
+  authorize("admin"),
+  admin.getReferralRewards
+);
+
+router.put(
+  "/referral-rewards/:id/approve",
+  protect,
+  authorize("admin"),
+  admin.approveReferralReward
+);
+
+router.put(
+  "/referral-rewards/:id/reject",
+  protect,
+  authorize("admin"),
+  admin.rejectReferralReward
+);
+
+router.put(
+  "/referral-rewards/:id/issue",
+  protect,
+  authorize("admin"),
+  admin.issueReferralGift
+);
+
+router.get(
+  "/commission-settings",
+  protect,
+  authorize("admin"),
+  admin.getCommissionSettings
+);
+
+router.put(
+  "/commission-settings",
+  protect,
+  authorize("admin"),
+  admin.updateCommissionSettings
+);
+
+// ==========================================
+// ADMIN ACCOUNT SETTINGS
+// ==========================================
+
+router.put(
+  "/change-email",
+  protect,
+  authorize("admin"),
+  admin.changeAdminEmail
+);
+
+router.put(
+  "/change-password",
+  protect,
+  authorize("admin"),
+  admin.changeAdminPassword
 );
 
 module.exports = router;

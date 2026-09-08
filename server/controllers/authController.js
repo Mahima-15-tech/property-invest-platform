@@ -1,12 +1,40 @@
 const User = require("../models/user");
 const jwt = require("jsonwebtoken");
 
+// ================= INVESTOR REFERRAL CODE =================
+
+const generateReferralCode = async () => {
+  let code;
+  let exists = true;
+
+  while (exists) {
+    code =
+      "REF" +
+      Math.random()
+        .toString(36)
+        .substring(2, 8)
+        .toUpperCase();
+
+    exists = await User.exists({
+      referralCode: code,
+      role: "investor",
+    });
+  }
+
+  return code;
+};
 
 // ================= SEND OTP =================
 
 exports.sendOtp = async (req, res) => {
   try {
-    const { email, role, name, mode } = req.body;
+    const {
+      email,
+      role,
+      name,
+      mode,
+      referralCode,
+    } = req.body;
 
     if (!email) {
       return res.status(400).json({
@@ -37,13 +65,48 @@ exports.sendOtp = async (req, res) => {
         });
       }
 
-      user = await User.create({
-        email: normalizedEmail,
-        name: name || "",
-        role: role || "investor",
-        otp,
-        otpExpiry: Date.now() + 5 * 60 * 1000,
-      });
+      // ================= REFERRAL =================
+
+let referredBy = null;
+let referralCodeUsed = null;
+
+if (role === "investor" && referralCode) {
+  const referrer = await User.findOne({
+    referralCode: referralCode.trim().toUpperCase(),
+    role: "investor",
+  });
+
+  if (!referrer) {
+    return res.status(400).json({
+      message: "Invalid referral code",
+    });
+  }
+
+  // User apne hi code se register na kar sake
+  referredBy = referrer._id;
+  referralCodeUsed = referrer.referralCode;
+}
+
+// ================= CREATE USER =================
+
+const newReferralCode =
+  role === "investor"
+    ? await generateReferralCode()
+    : undefined;
+
+user = await User.create({
+  email: normalizedEmail,
+  name: name || "",
+  role: role || "investor",
+
+  referralCode: newReferralCode,
+
+  referredBy,
+  referralCodeUsed,
+
+  otp,
+  otpExpiry: Date.now() + 5 * 60 * 1000,
+});
     }
 
     // ================= LOGIN =================
@@ -217,7 +280,25 @@ exports.applyReferral = async (req, res) => {
   try {
     const { referralCode } = req.body;
 
+    if (!referralCode) {
+      return res.status(400).json({
+        message: "Referral code is required",
+      });
+    }
+
     const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    if (user.role !== "investor") {
+      return res.status(403).json({
+        message: "Referral is only available for investors",
+      });
+    }
 
     if (user.referredBy) {
       return res.status(400).json({
@@ -225,20 +306,35 @@ exports.applyReferral = async (req, res) => {
       });
     }
 
-    const broker = await User.findOne({ referralCode });
+    const referrer = await User.findOne({
+      referralCode: referralCode.trim().toUpperCase(),
+      role: "investor",
+    });
 
-    if (!broker) {
+    if (!referrer) {
       return res.status(400).json({
         message: "Invalid referral code",
       });
     }
 
-    user.referredBy = broker._id;
+    // Self referral protection
+    if (referrer._id.toString() === user._id.toString()) {
+      return res.status(400).json({
+        message: "You cannot use your own referral code",
+      });
+    }
+
+    user.referredBy = referrer._id;
+    user.referralCodeUsed = referrer.referralCode;
 
     await user.save();
 
     res.json({
       message: "Referral applied successfully",
+      referredBy: {
+        id: referrer._id,
+        name: referrer.name,
+      },
     });
 
   } catch (error) {

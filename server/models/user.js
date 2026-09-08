@@ -43,12 +43,24 @@
     },
   
     lastOtpSent: Date,
-    referralCode: String,
-    referredBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
-  
+    // ================= INVESTOR REFERRAL =================
+
+referralCode: {
+  type: String,
+  unique: true,
+  sparse: true,
+},
+
+referredBy: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "User",
+  default: null,
+},
+
+referralCodeUsed: {
+  type: String,
+  default: null,
+},
     isApproved: {
       type: Boolean,
       default: false,

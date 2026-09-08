@@ -13,6 +13,7 @@ import {
   ClipboardList,
   Menu,
   X,
+  Gift,
   Search,
   LogOut,
   ChevronLeft,
@@ -38,6 +39,14 @@ const navigation = [
   { name: "Properties", href: "/properties", icon: Building2 },
   { name: "Investors", href: "/investors", icon: Users },
   { name: "Brokers", href: "/brokers", icon: Briefcase },
+  
+  { 
+    name: "Referral Program", 
+    href: "/referral-program", 
+    icon: Gift 
+  },
+  { name: "Ownership Request", href: "/ownership", icon: Briefcase },
+
   { name: "Transactions", href: "/transactions", icon: CreditCard },
   { name: "Exit Requests", href: "/exit-requests", icon: LogOut },
   { name: "Reports", href: "/reports", icon: BarChart3 },

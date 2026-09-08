@@ -1,3 +1,6 @@
 import axios from "./axios";
 
-export const getReports = () => axios.get("/reports");
+export const getReports = (period = "6months") =>
+  axios.get("/reports", {
+    params: { period },
+  });

@@ -64,6 +64,9 @@ export function PropertyCreate() {
     pricePerShare: "",
     expectedROI: "",
     duration: "",
+
+    shareBuyingCycle: 10,
+enableFullOwnership: false,
   
     images: [],
     video: null,
@@ -173,6 +176,13 @@ export function PropertyCreate() {
       form.append("totalShares", formData.totalShares);
       form.append("expectedROI", formData.expectedROI);
       form.append("duration", formData.duration);
+
+      // SHARE SETTINGS
+form.append("shareBuyingCycle", formData.shareBuyingCycle);
+form.append(
+  "enableFullOwnership",
+  String(formData.enableFullOwnership)
+);
 
       form.append("tenants", formData.tenants);
       form.append("propertyGrade", formData.propertyGrade);
@@ -682,66 +692,288 @@ export function PropertyCreate() {
           )}
 
           {/* STEP 6: INVESTMENT */}
-          {currentStep === 6 && (
-            <div className="space-y-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-700">Total Asset Value (₹) *</Label>
-                  <Input
-                    placeholder="e.g. 50000000"
-                    value={formData.totalValue}
-                    onChange={(e) => updateFormData("totalValue", e.target.value)}
-                    className="h-10 rounded-xl border-slate-200 font-mono text-sm"
-                  />
-                </div>
+          {/* STEP 6: INVESTMENT */}
+{currentStep === 6 && (
+  <div className="space-y-6">
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-700">Total Issued Shares *</Label>
-                  <Input
-                    placeholder="e.g. 5000"
-                    value={formData.totalShares}
-                    onChange={(e) => updateFormData("totalShares", e.target.value)}
-                    className="h-10 rounded-xl border-slate-200 font-mono text-sm"
-                  />
-                </div>
-              </div>
+    {/* PROPERTY VALUE + TOTAL SHARES */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-              {/* CALCULATED VALUE CARD */}
-              <div className="p-4 rounded-2xl bg-slate-900 text-white flex items-center justify-between">
-                <div>
-                  <p className="text-[11px] text-slate-400 uppercase font-semibold tracking-wider">Calculated Share Price</p>
-                  <p className="text-xl font-bold font-mono mt-0.5">
-                    ₹{formData.pricePerShare || 0} <span className="text-xs font-normal text-slate-400">/ share</span>
-                  </p>
-                </div>
-                <div className="p-2 bg-slate-800 rounded-xl">
-                  <Coins className="w-5 h-5 text-emerald-400" />
-                </div>
-              </div>
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold text-slate-700">
+          Total Asset Value (₹) *
+        </Label>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-700">Target ROI (%)</Label>
-                  <Input
-                    placeholder="e.g. 12.5"
-                    value={formData.expectedROI || ""}
-                    onChange={(e) => updateFormData("expectedROI", e.target.value)}
-                    className="h-10 rounded-xl border-slate-200 font-mono text-sm"
-                  />
-                </div>
+        <Input
+          type="number"
+          placeholder="e.g. 50000000"
+          value={formData.totalValue}
+          onChange={(e) =>
+            updateFormData("totalValue", e.target.value)
+          }
+          className="h-10 rounded-xl border-slate-200 font-mono text-sm"
+        />
+      </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-700">Lock-in Duration</Label>
-                  <Input
-                    placeholder="e.g. 3 Years"
-                    value={formData.duration || ""}
-                    onChange={(e) => updateFormData("duration", e.target.value)}
-                    className="h-10 rounded-xl border-slate-200 text-sm"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold text-slate-700">
+          Total Property Shares *
+        </Label>
+
+        <Input
+          type="number"
+          placeholder="e.g. 100"
+          value={formData.totalShares}
+          onChange={(e) =>
+            updateFormData("totalShares", e.target.value)
+          }
+          className="h-10 rounded-xl border-slate-200 font-mono text-sm"
+        />
+
+        <p className="text-[11px] text-slate-400">
+          Includes 10 company reserved shares
+        </p>
+      </div>
+
+    </div>
+
+
+    {/* SHARE BREAKDOWN */}
+    {Number(formData.totalShares) > 0 && (
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+
+        <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50">
+          <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">
+            Company Reserved
+          </p>
+
+          <p className="text-xl font-bold text-slate-900 mt-1">
+            10 Shares
+          </p>
+
+          <p className="text-[11px] text-slate-500 mt-1">
+            Fixed company ownership
+          </p>
+        </div>
+
+
+        <div className="p-4 rounded-2xl border border-blue-100 bg-blue-50">
+          <p className="text-[10px] uppercase tracking-wider font-semibold text-blue-500">
+            Investor Available
+          </p>
+
+          <p className="text-xl font-bold text-blue-700 mt-1">
+            {Math.max(Number(formData.totalShares) - 10, 0)} Shares
+          </p>
+
+          <p className="text-[11px] text-blue-600 mt-1">
+            Available for investors
+          </p>
+        </div>
+
+
+        <div className="p-4 rounded-2xl border border-emerald-100 bg-emerald-50">
+          <p className="text-[10px] uppercase tracking-wider font-semibold text-emerald-500">
+            Stakeholder Unit
+          </p>
+
+          <p className="text-xl font-bold text-emerald-700 mt-1">
+            10 Shares
+          </p>
+
+          <p className="text-[11px] text-emerald-600 mt-1">
+            = 1 Stakeholder
+          </p>
+        </div>
+
+      </div>
+    )}
+
+
+    {/* SHARE BUYING CYCLE */}
+    <div className="space-y-2">
+
+      <Label className="text-xs font-semibold text-slate-700">
+        Share Buying Cycle *
+      </Label>
+
+      <p className="text-xs text-slate-500">
+        Controls the increment in which investors can purchase shares.
+      </p>
+
+      <div className="grid grid-cols-2 gap-3 pt-1">
+
+        <button
+          type="button"
+          onClick={() =>
+            updateFormData("shareBuyingCycle", 5)
+          }
+          className={`h-14 rounded-xl border text-sm font-semibold transition-all ${
+            formData.shareBuyingCycle === 5
+              ? "border-blue-600 bg-blue-50 text-blue-700 shadow-sm"
+              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+          }`}
+        >
+          5 Shares
+        </button>
+
+
+        <button
+          type="button"
+          onClick={() =>
+            updateFormData("shareBuyingCycle", 10)
+          }
+          className={`h-14 rounded-xl border text-sm font-semibold transition-all ${
+            formData.shareBuyingCycle === 10
+              ? "border-blue-600 bg-blue-50 text-blue-700 shadow-sm"
+              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+          }`}
+        >
+          10 Shares
+        </button>
+
+      </div>
+
+
+      {/* BUYING RULE INFO */}
+      <div className="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-100">
+        <p className="text-xs font-semibold text-amber-800">
+          Minimum Initial Purchase: 10 Shares
+        </p>
+
+        <p className="text-[11px] text-amber-700 mt-1">
+          {formData.shareBuyingCycle === 5
+            ? "Investors can buy 10, 15, 20, 25... shares."
+            : "Investors can buy 10, 20, 30, 40... shares."}
+        </p>
+      </div>
+
+    </div>
+
+
+    {/* CALCULATED SHARE PRICE */}
+    <div className="p-4 rounded-2xl bg-slate-900 text-white flex items-center justify-between">
+
+      <div>
+        <p className="text-[11px] text-slate-400 uppercase font-semibold tracking-wider">
+          Calculated Share Price
+        </p>
+
+        <p className="text-xl font-bold font-mono mt-0.5">
+          ₹{formData.pricePerShare || 0}
+
+          <span className="text-xs font-normal text-slate-400">
+            {" "} / share
+          </span>
+        </p>
+      </div>
+
+      <div className="p-2 bg-slate-800 rounded-xl">
+        <Coins className="w-5 h-5 text-emerald-400" />
+      </div>
+
+    </div>
+
+
+    {/* ROI + LOCK IN */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+      <div className="space-y-1.5">
+
+        <Label className="text-xs font-semibold text-slate-700">
+          Target ROI (%)
+        </Label>
+
+        <Input
+          placeholder="e.g. 12.5"
+          value={formData.expectedROI || ""}
+          onChange={(e) =>
+            updateFormData("expectedROI", e.target.value)
+          }
+          className="h-10 rounded-xl border-slate-200 font-mono text-sm"
+        />
+
+      </div>
+
+
+      <div className="space-y-1.5">
+
+        <Label className="text-xs font-semibold text-slate-700">
+          Lock-in Period
+        </Label>
+
+        <div className="h-10 px-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center text-sm font-semibold text-slate-700">
+          2 Years
+        </div>
+
+        <p className="text-[11px] text-slate-400">
+          Fixed default lock-in period
+        </p>
+
+      </div>
+
+    </div>
+
+
+    {/* 100% OWNERSHIP */}
+    <div className="p-5 rounded-2xl border border-slate-200 bg-slate-50/60">
+
+      <div className="flex items-start justify-between gap-4">
+
+        <div>
+          <h3 className="text-sm font-bold text-slate-900">
+            Enable 100% Ownership Acquisition
+          </h3>
+
+          <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+            Allow an eligible investor to request acquisition of all
+            remaining property shares.
+          </p>
+        </div>
+
+
+        <button
+          type="button"
+          onClick={() =>
+            updateFormData(
+              "enableFullOwnership",
+              !formData.enableFullOwnership
+            )
+          }
+          className={`relative w-12 h-6 rounded-full transition-all shrink-0 ${
+            formData.enableFullOwnership
+              ? "bg-blue-600"
+              : "bg-slate-300"
+          }`}
+        >
+          <span
+            className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${
+              formData.enableFullOwnership
+                ? "left-7"
+                : "left-1"
+            }`}
+          />
+        </button>
+
+      </div>
+
+
+      <div
+        className={`mt-4 text-xs font-semibold px-3 py-2 rounded-xl ${
+          formData.enableFullOwnership
+            ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+            : "bg-slate-100 text-slate-500"
+        }`}
+      >
+        {formData.enableFullOwnership
+          ? "100% Ownership Acquisition Enabled"
+          : "100% Ownership Acquisition Disabled"}
+      </div>
+
+    </div>
+
+  </div>
+)}
 
           {/* STEP 7: PREVIEW */}
           {currentStep === 7 && (
@@ -793,6 +1025,68 @@ export function PropertyCreate() {
                   <span className="text-slate-400 block font-medium">Total Value</span>
                   <span className="font-bold text-slate-900 font-mono text-sm mt-0.5 block">₹{Number(formData.totalValue || 0).toLocaleString("en-IN")}</span>
                 </div>
+
+                <div>
+  <span className="text-slate-400 block font-medium">
+    Total Shares
+  </span>
+
+  <span className="font-bold text-slate-900 mt-0.5 block">
+    {formData.totalShares || 0}
+  </span>
+</div>
+
+
+<div>
+  <span className="text-slate-400 block font-medium">
+    Investor Shares
+  </span>
+
+  <span className="font-bold text-blue-600 mt-0.5 block">
+    {Math.max(Number(formData.totalShares || 0) - 10, 0)}
+  </span>
+</div>
+
+
+<div>
+  <span className="text-slate-400 block font-medium">
+    Share Buying Cycle
+  </span>
+
+  <span className="font-bold text-slate-900 mt-0.5 block">
+    {formData.shareBuyingCycle} Shares
+  </span>
+</div>
+
+
+<div>
+  <span className="text-slate-400 block font-medium">
+    Lock-in Period
+  </span>
+
+  <span className="font-bold text-slate-900 mt-0.5 block">
+    2 Years
+  </span>
+</div>
+
+
+<div>
+  <span className="text-slate-400 block font-medium">
+    Full Ownership
+  </span>
+
+  <span
+    className={`font-bold mt-0.5 block ${
+      formData.enableFullOwnership
+        ? "text-emerald-600"
+        : "text-slate-500"
+    }`}
+  >
+    {formData.enableFullOwnership
+      ? "Enabled"
+      : "Disabled"}
+  </span>
+</div>
 
                 <div>
                   <span className="text-slate-400 block font-medium">Target ROI</span>

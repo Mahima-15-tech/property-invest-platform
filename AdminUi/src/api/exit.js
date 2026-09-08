@@ -1,7 +1,7 @@
 import axios from "./axios";
 
-export const getExitRequests = () =>
-  axios.get("/admin/exit-requests");
+export const getExitRequests = (page = 1, limit = 10) =>
+  axios.get(`/admin/exit-requests?page=${page}&limit=${limit}`);
 
 export const approveExit = (id) =>
   axios.put(`/admin/exit-requests/${id}/approve`);

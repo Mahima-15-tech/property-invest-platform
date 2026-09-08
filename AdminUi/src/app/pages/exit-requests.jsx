@@ -25,7 +25,12 @@ import {
 export default function ExitRequests() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRequests, setTotalRequests] = useState(0);
   const [editingId, setEditingId] = useState(null);
+  
 
   const [editData, setEditData] = useState({
     shares: "",
@@ -44,11 +49,13 @@ export default function ExitRequests() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const res = await getExitRequests();
-
-setData(res.data || []);
-      await new Promise(resolve => setTimeout(resolve, 800)); 
-      setData(res.data || []);
+  
+      const res = await getExitRequests(page, 10);
+  
+      setData(res.data.data || []);
+      setTotalPages(res.data.totalPages || 1);
+      setTotalRequests(res.data.total || 0);
+  
     } catch (err) {
       console.error("Failed to load requests:", err);
     } finally {
@@ -58,7 +65,7 @@ setData(res.data || []);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [page]);
 
   const openConfirmation = (type, id, name) => {
     setModal({ isOpen: true, type, id, investorName: name });
@@ -97,7 +104,6 @@ setData(res.data || []);
   
       await updateExit(exit._id, {
         shares: Number(editData.shares),
-        amount: Number(editData.amount),
       });
   
       setEditingId(null);
@@ -272,16 +278,20 @@ setData(res.data || []);
                       <td className="py-5 px-6 text-slate-700 font-mono text-sm tabular-nums">
                         {editingId === item._id ? (
                           <input
-                            type="number"
-                            value={editData.shares}
-                            onChange={(e) =>
-                              setEditData({
-                                ...editData,
-                                shares: e.target.value,
-                              })
-                            }
-                            className="w-24 bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all shadow-inner"
-                          />
+                          type="number"
+                          min="1"
+                          step={item.propertyId?.shareBuyingCycle || 10}
+                          value={editData.shares}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                        
+                            setEditData({
+                              ...editData,
+                              shares: value,
+                            });
+                          }}
+                          className="w-24 bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all shadow-inner"
+                        />
                         ) : (
                           `${item.shares} Units`
                         )}
@@ -289,22 +299,27 @@ setData(res.data || []);
 
                       {/* Amount */}
                       <td className="py-5 px-6 font-bold text-slate-950 font-mono text-base tabular-nums">
-                        {editingId === item._id ? (
-                          <input
-                            type="number"
-                            value={editData.amount}
-                            onChange={(e) =>
-                              setEditData({
-                                ...editData,
-                                amount: e.target.value,
-                              })
-                            }
-                            className="w-32 bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all shadow-inner"
-                          />
-                        ) : (
-                          `₹${item.amount.toLocaleString("en-IN")}`
-                        )}
-                      </td>
+  {editingId === item._id ? (
+    <div className="flex flex-col">
+      <span className="text-xs text-slate-400 mb-1">
+        Auto calculated
+      </span>
+
+      <span className="text-emerald-700">
+        ₹{(
+          Number(editData.shares || 0) *
+          Number(
+            item.propertyId?.pricePerShare ||
+            item.investmentId?.pricePerShare ||
+            0
+          )
+        ).toLocaleString("en-IN")}
+      </span>
+    </div>
+  ) : (
+    `₹${Number(item.amount || 0).toLocaleString("en-IN")}`
+  )}
+</td>
 
                       {/* Status Badging */}
                       <td className="py-5 px-6">
@@ -414,6 +429,79 @@ Reject
                 )}
               </tbody>
             </table>
+
+            <div className="flex items-center justify-between border-t border-slate-100 px-6 py-5">
+
+  <p className="text-xs font-medium text-slate-500">
+    Showing page{" "}
+    <span className="font-bold text-slate-900">
+      {page}
+    </span>{" "}
+    of{" "}
+    <span className="font-bold text-slate-900">
+      {totalPages}
+    </span>
+  </p>
+
+  <div className="flex items-center gap-2">
+
+    <button
+      disabled={page === 1 || loading}
+      onClick={() => setPage((prev) => prev - 1)}
+      className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold disabled:opacity-40 hover:bg-slate-50"
+    >
+      Previous
+    </button>
+
+    <div className="flex gap-1">
+      {[...Array(totalPages)].map((_, index) => {
+        const p = index + 1;
+
+        if (
+          p === 1 ||
+          p === totalPages ||
+          (p >= page - 1 && p <= page + 1)
+        ) {
+          return (
+            <button
+              key={p}
+              onClick={() => setPage(p)}
+              className={`w-8 h-8 rounded-xl text-xs font-bold ${
+                page === p
+                  ? "bg-slate-900 text-white"
+                  : "bg-white border border-slate-200 text-slate-700"
+              }`}
+            >
+              {p}
+            </button>
+          );
+        }
+
+        if (p === page - 2 || p === page + 2) {
+          return (
+            <span
+              key={p}
+              className="w-8 h-8 flex items-center justify-center text-xs text-slate-400"
+            >
+              ...
+            </span>
+          );
+        }
+
+        return null;
+      })}
+    </div>
+
+    <button
+      disabled={page === totalPages || loading}
+      onClick={() => setPage((prev) => prev + 1)}
+      className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold disabled:opacity-40 hover:bg-slate-50"
+    >
+      Next
+    </button>
+
+  </div>
+</div>
           </div>
         </div>
 

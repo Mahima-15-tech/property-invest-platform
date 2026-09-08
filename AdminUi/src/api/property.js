@@ -6,6 +6,12 @@ export const createProperty = async (data) => {
   return res.data;
 };
 
+export const getDeletedProperties = () =>
+  axios.get("/properties/deleted");
+
+export const restoreProperty = (id) =>
+  axios.patch(`/properties/${id}/restore`);
+
 // GET ALL
 export const getProperties = () => {
   return axios.get("/properties");

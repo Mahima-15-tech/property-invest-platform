@@ -50,7 +50,7 @@ export function Properties() {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 5;
 
   const navigate = useNavigate();
 
@@ -75,10 +75,20 @@ export function Properties() {
   };
 
   const handleSelectAll = (checked) => {
+    const currentPageIds = currentProperties.map(
+      (property) => property._id
+    );
+  
     if (checked) {
-      setSelectedRows(properties.map((p) => p._id));
+      setSelectedRows((prev) => [
+        ...new Set([...prev, ...currentPageIds]),
+      ]);
     } else {
-      setSelectedRows([]);
+      setSelectedRows((prev) =>
+        prev.filter(
+          (id) => !currentPageIds.includes(id)
+        )
+      );
     }
   };
 
@@ -91,16 +101,28 @@ export function Properties() {
   };
 
   const handleSort = (key) => {
+    setCurrentPage(1);
+  
     setSortConfig((current) => {
       if (current?.key === key) {
         return {
           key,
-          direction: current.direction === "asc" ? "desc" : "asc",
+          direction:
+            current.direction === "asc" ? "desc" : "asc",
         };
       }
-      return { key, direction: "asc" };
+  
+      return {
+        key,
+        direction: "asc",
+      };
     });
   };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter]);
+
 
   const handleToggleFeatured = async (id, value) => {
     try {
@@ -117,15 +139,35 @@ export function Properties() {
   const handleEdit = (id) => navigate(`/properties/edit/${id}`);
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this property listing?")) return;
-
+    if (
+      !window.confirm(
+        "Are you sure you want to move this property to Deleted Properties?"
+      )
+    ) {
+      return;
+    }
+  
     try {
       await deleteProperty(id);
-      toast.success("Property deleted successfully");
+  
+      toast.success(
+        "Property moved to Deleted Properties"
+      );
+  
+      setSelectedRows((prev) =>
+        prev.filter((rowId) => rowId !== id)
+      );
+  
+      setExpandedRow(null);
+  
       fetchProperties();
     } catch (err) {
       console.error(err);
-      toast.error("Delete failed");
+  
+      toast.error(
+        err.response?.data?.message ||
+          "Failed to delete property"
+      );
     }
   };
 
@@ -184,14 +226,45 @@ export function Properties() {
             </p>
           </div>
 
-          <div>
-            <Link to="/properties/create">
-              <Button className="w-full sm:w-auto bg-slate-900 hover:bg-slate-800 text-white font-medium px-4 py-2 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 text-sm">
-                <Plus className="h-4 w-4" />
-                Create Property
-              </Button>
-            </Link>
-          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+  <Button
+    variant="outline"
+    onClick={() =>
+      navigate("/properties/deleted")
+    }
+    className="
+      w-full sm:w-auto
+      rounded-xl
+      border-slate-200
+      text-slate-700
+      gap-2
+      font-medium
+    "
+  >
+    <Trash2 className="h-4 w-4 text-slate-500" />
+    Deleted Properties
+  </Button>
+
+  <Link to="/properties/create">
+    <Button
+      className="
+        w-full sm:w-auto
+        bg-slate-900
+        hover:bg-slate-800
+        text-white
+        font-medium
+        px-4 py-2
+        rounded-xl
+        flex items-center
+        justify-center
+        gap-2
+      "
+    >
+      <Plus className="h-4 w-4" />
+      Create Property
+    </Button>
+  </Link>
+</div>
         </div>
 
         {/* --- STATS OVERVIEW CARDS --- */}
@@ -293,10 +366,15 @@ export function Properties() {
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/50 text-slate-600 text-[11px] uppercase tracking-wider font-semibold">
                   <th className="py-3 px-3 w-8 text-center">
-                    <Checkbox
-                      checked={selectedRows.length === properties.length && properties.length > 0}
-                      onCheckedChange={handleSelectAll}
-                    />
+                  <Checkbox
+  checked={
+    currentProperties.length > 0 &&
+    currentProperties.every((property) =>
+      selectedRows.includes(property._id)
+    )
+  }
+  onCheckedChange={handleSelectAll}
+/>
                   </th>
 
                   <th className="py-3 px-3">
@@ -542,29 +620,119 @@ export function Properties() {
         </div>
 
         {/* --- PAGINATION --- */}
-        <div className="flex items-center justify-between border-t border-slate-100 pt-4">
-          <p className="text-xs font-medium text-slate-500">
-            Page <span className="font-bold text-slate-900">{currentPage}</span> of <span className="font-bold text-slate-900">{totalPages}</span>
-          </p>
+        {/* --- PAGINATION --- */}
+<div className="bg-white border border-slate-100 rounded-2xl shadow-sm px-4 sm:px-5 py-3.5">
+  <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
 
-          <div className="flex items-center gap-2">
-            <button
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(currentPage - 1)}
-              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg disabled:opacity-40 hover:bg-slate-50 transition flex items-center gap-1 shadow-sm"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" /> Prev
-            </button>
+    {/* LEFT — RESULT INFO */}
+    <div className="text-xs text-slate-500 font-medium">
+      {sortedProperties.length > 0 ? (
+        <>
+          Showing{" "}
+          <span className="font-bold text-slate-900">
+            {indexOfFirst + 1}
+          </span>
+          {" – "}
+          <span className="font-bold text-slate-900">
+            {Math.min(indexOfLast, sortedProperties.length)}
+          </span>
+          {" of "}
+          <span className="font-bold text-slate-900">
+            {sortedProperties.length}
+          </span>{" "}
+          properties
+        </>
+      ) : (
+        "No properties found"
+      )}
+    </div>
 
+    {/* RIGHT — PAGINATION */}
+    {totalPages > 1 && (
+      <div className="flex items-center gap-1.5">
+
+        {/* PREVIOUS */}
+        <button
+          disabled={currentPage === 1}
+          onClick={() =>
+            setCurrentPage((prev) => Math.max(1, prev - 1))
+          }
+          className="
+            h-8 px-3
+            flex items-center gap-1
+            rounded-lg
+            border border-slate-200
+            bg-white
+            text-xs font-semibold text-slate-600
+            hover:bg-slate-50
+            hover:text-slate-900
+            disabled:opacity-40
+            disabled:cursor-not-allowed
+            transition-all
+          "
+        >
+          <ChevronLeft className="w-3.5 h-3.5" />
+          Prev
+        </button>
+
+        {/* PAGE NUMBERS */}
+        <div className="flex items-center gap-1">
+
+          {Array.from(
+            { length: totalPages },
+            (_, index) => index + 1
+          ).map((page) => (
             <button
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(currentPage + 1)}
-              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg disabled:opacity-40 hover:bg-slate-50 transition flex items-center gap-1 shadow-sm"
+              key={page}
+              onClick={() => setCurrentPage(page)}
+              className={`
+                h-8 min-w-8 px-2
+                rounded-lg
+                text-xs font-bold
+                transition-all
+                ${
+                  currentPage === page
+                    ? "bg-slate-900 text-white shadow-sm"
+                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900"
+                }
+              `}
             >
-              Next <ChevronRight className="w-3.5 h-3.5" />
+              {page}
             </button>
-          </div>
+          ))}
+
         </div>
+
+        {/* NEXT */}
+        <button
+          disabled={currentPage === totalPages}
+          onClick={() =>
+            setCurrentPage((prev) =>
+              Math.min(totalPages, prev + 1)
+            )
+          }
+          className="
+            h-8 px-3
+            flex items-center gap-1
+            rounded-lg
+            border border-slate-200
+            bg-white
+            text-xs font-semibold text-slate-600
+            hover:bg-slate-50
+            hover:text-slate-900
+            disabled:opacity-40
+            disabled:cursor-not-allowed
+            transition-all
+          "
+        >
+          Next
+          <ChevronRight className="w-3.5 h-3.5" />
+        </button>
+
+      </div>
+    )}
+  </div>
+</div>
 
       </div>
     </div>

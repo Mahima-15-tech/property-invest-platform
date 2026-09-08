@@ -1,7 +1,8 @@
 import { createBrowserRouter } from "react-router-dom";
 import { RootLayout } from "./components/root-layout";
 import { Dashboard } from "./pages/dashboard";
-import { Properties } from "./pages/properties";
+import { Properties } from "./pages/Properties";
+import { DeletedProperties } from "./pages/DeletedProperties";
 import { PropertyCreate } from "./pages/property-create";
 import { Investors } from "./pages/investors";
 import { Brokers } from "./pages/brokers";
@@ -17,6 +18,9 @@ import { PropertyEdit } from "./pages/property-edit";
 import { Login } from "./pages/login";
 import ExitRequests from "./pages/exit-requests";
 import { UsersPage } from "./pages/users";
+import OwnershipRequests from "../app/pages/OwnershipRequests";
+import { ReferralProgram } from "../app/pages/ReferralProgram";
+import { InvestorDetails } from "./pages/investor-details";
 
 export const router = createBrowserRouter([
   {
@@ -35,8 +39,14 @@ export const router = createBrowserRouter([
       { path: "properties/create", element: <PropertyCreate /> },
       { path: "properties/view/:id", element: <PropertyView /> },
       { path: "properties/edit/:id", element: <PropertyEdit /> },
+      {
+        path: "properties/deleted",
+        element: <DeletedProperties />,
+      },
       { path: "investors", element: <Investors /> },
+      { path: "investors/:id", element: <InvestorDetails /> },
       { path: "brokers", element: <Brokers /> },
+      { path: "referral-program", element: <ReferralProgram /> },
       { path: "exit-requests", element: <ExitRequests /> },
       { path: "transactions", element: <Transactions /> },
       { path: "reports", element: <Reports /> },
@@ -46,6 +56,8 @@ export const router = createBrowserRouter([
       { path: "audit-logs", element: <AuditLogs /> },
       { path: "*", element: <NotFound /> },
       { path: "users", element: <UsersPage /> }, 
+      { path: "ownership", element: <OwnershipRequests /> }, 
+
       
     ],
   },

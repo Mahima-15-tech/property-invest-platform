@@ -66,7 +66,8 @@ export function PropertyCreate() {
     duration: "",
 
     shareBuyingCycle: 10,
-enableFullOwnership: false,
+// enableFullOwnership: false,
+
   
     images: [],
     video: null,
@@ -179,10 +180,10 @@ enableFullOwnership: false,
 
       // SHARE SETTINGS
 form.append("shareBuyingCycle", formData.shareBuyingCycle);
-form.append(
-  "enableFullOwnership",
-  String(formData.enableFullOwnership)
-);
+// form.append(
+//   "enableFullOwnership",
+//   String(formData.enableFullOwnership)
+// );
 
       form.append("tenants", formData.tenants);
       form.append("propertyGrade", formData.propertyGrade);
@@ -916,7 +917,7 @@ form.append(
 
 
     {/* 100% OWNERSHIP */}
-    <div className="p-5 rounded-2xl border border-slate-200 bg-slate-50/60">
+    {/* <div className="p-5 rounded-2xl border border-slate-200 bg-slate-50/60">
 
       <div className="flex items-start justify-between gap-4">
 
@@ -970,7 +971,7 @@ form.append(
           : "100% Ownership Acquisition Disabled"}
       </div>
 
-    </div>
+    </div> */}
 
   </div>
 )}
@@ -1070,7 +1071,7 @@ form.append(
 </div>
 
 
-<div>
+{/* <div>
   <span className="text-slate-400 block font-medium">
     Full Ownership
   </span>
@@ -1086,7 +1087,7 @@ form.append(
       ? "Enabled"
       : "Disabled"}
   </span>
-</div>
+</div> */}
 
                 <div>
                   <span className="text-slate-400 block font-medium">Target ROI</span>

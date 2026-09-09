@@ -1,7 +1,7 @@
 import { createBrowserRouter } from "react-router-dom";
 import { RootLayout } from "./components/root-layout";
 import { Dashboard } from "./pages/dashboard";
-import { Properties } from "./pages/Properties";
+import { Properties } from "./pages/properties";
 import { DeletedProperties } from "./pages/DeletedProperties";
 import { PropertyCreate } from "./pages/property-create";
 import { Investors } from "./pages/investors";

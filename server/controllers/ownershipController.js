@@ -53,12 +53,12 @@ exports.createOwnershipRequest = async (req, res) => {
     // 3. CHECK FULL OWNERSHIP ENABLED
     // ==================================================
 
-    if (!property.enableFullOwnership) {
-      return res.status(400).json({
-        message:
-          "Full ownership is not available for this property",
-      });
-    }
+    // if (!property.enableFullOwnership) {
+    //   return res.status(400).json({
+    //     message:
+    //       "Full ownership is not available for this property",
+    //   });
+    // }
 
     // ==================================================
     // 4. CHECK LOCK-IN

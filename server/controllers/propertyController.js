@@ -328,14 +328,7 @@ return res.status(400).json({
     
           // ================= STATUS =================
     
-          status:
-            p.status || "funding",
-    
-          isFeatured:
-            p.isFeatured || false,
-    
-          isPublished:
-            p.isPublished ?? true,
+          
 
 
             status: p.status || "funding",

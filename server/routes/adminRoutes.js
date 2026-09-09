@@ -10,7 +10,27 @@ const {
 
 router.post("/login", admin.adminLogin);
 
+// ==========================================
+// ADMIN FORGOT PASSWORD
+// ==========================================
 
+// Generate Dummy OTP
+router.post(
+  "/forgot-password",
+  admin.adminForgotPassword
+);
+
+// Verify OTP
+router.post(
+  "/verify-reset-otp",
+  admin.verifyAdminResetOtp
+);
+
+// Reset Password
+router.post(
+  "/reset-password",
+  admin.resetAdminPassword
+);
 
 router.patch(
   "/approve-broker/:id",

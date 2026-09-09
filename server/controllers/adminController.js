@@ -2344,3 +2344,246 @@ exports.changeAdminPassword = async (req, res) => {
     });
   }
 };
+
+
+// ==========================================
+// ADMIN FORGOT PASSWORD - DUMMY OTP
+// ==========================================
+
+exports.adminForgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Find admin
+    const admin = await User.findOne({
+      email: normalizedEmail,
+      role: "admin",
+    });
+
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: "Admin account not found with this email",
+      });
+    }
+
+    // Generate 6 digit OTP
+    const otp = Math.floor(
+      100000 + Math.random() * 900000
+    ).toString();
+
+    // OTP valid for 10 minutes
+    admin.otp = otp;
+    admin.otpExpiry = new Date(
+      Date.now() + 10 * 60 * 1000
+    );
+
+    admin.lastOtpSent = new Date();
+
+    await admin.save();
+
+    // TEMPORARY - console me OTP dikhega
+    console.log("=================================");
+    console.log("ADMIN PASSWORD RESET OTP:", otp);
+    console.log("EMAIL:", admin.email);
+    console.log("=================================");
+
+    return res.status(200).json({
+      success: true,
+      message: "OTP generated successfully",
+
+      // ⚠️ TEMPORARY ONLY
+      // Production me isko remove kar dena
+      otp,
+    });
+
+  } catch (error) {
+    console.error(
+      "ADMIN FORGOT PASSWORD ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to generate OTP",
+    });
+  }
+};
+
+// ==========================================
+// VERIFY ADMIN RESET OTP
+// ==========================================
+
+exports.verifyAdminResetOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and OTP are required",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const admin = await User.findOne({
+      email: normalizedEmail,
+      role: "admin",
+    });
+
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: "Admin not found",
+      });
+    }
+
+    if (admin.otp !== otp.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP",
+      });
+    }
+
+    if (
+      !admin.otpExpiry ||
+      admin.otpExpiry < new Date()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP has expired",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "OTP verified successfully",
+    });
+
+  } catch (error) {
+    console.error(
+      "VERIFY ADMIN OTP ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to verify OTP",
+    });
+  }
+};
+
+// ==========================================
+// RESET ADMIN PASSWORD
+// ==========================================
+
+exports.resetAdminPassword = async (req, res) => {
+  try {
+    const {
+      email,
+      otp,
+      newPassword,
+      confirmPassword,
+    } = req.body;
+
+    if (
+      !email ||
+      !otp ||
+      !newPassword ||
+      !confirmPassword
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required",
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Passwords do not match",
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Password must be at least 6 characters",
+      });
+    }
+
+    const normalizedEmail =
+      email.trim().toLowerCase();
+
+    const admin = await User.findOne({
+      email: normalizedEmail,
+      role: "admin",
+    }).select("+password");
+
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: "Admin not found",
+      });
+    }
+
+    // Verify OTP again for security
+    if (admin.otp !== otp.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP",
+      });
+    }
+
+    if (
+      !admin.otpExpiry ||
+      admin.otpExpiry < new Date()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP has expired",
+      });
+    }
+
+    // Hash new password
+    admin.password = await bcrypt.hash(
+      newPassword,
+      10
+    );
+
+    // OTP clear
+    admin.otp = undefined;
+    admin.otpExpiry = undefined;
+
+    await admin.save();
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Password reset successfully. Please login.",
+    });
+
+  } catch (error) {
+    console.error(
+      "RESET ADMIN PASSWORD ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to reset password",
+    });
+  }
+};

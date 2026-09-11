@@ -1,4 +1,177 @@
-    const Property = require("../models/property");
+const Property = require("../models/property");
+
+// =====================================================
+// PROPERTY FORMATTER
+// =====================================================
+
+const formatProperty = (p) => {
+  const totalValue = Number(p.totalValue) || 0;
+  const totalShares = Number(p.totalShares) || 0;
+
+  const pricePerShare =
+  Number(p.pricePerShare) > 0
+    ? Number(p.pricePerShare)
+    : totalShares > 0
+    ? totalValue / totalShares
+    : 0;
+
+  return {
+    _id: p._id,
+    id: p._id,
+
+    // ================= BASIC =================
+
+    name: p.name || "",
+    category: p.category || "",
+    type: p.type || "",
+    size: p.size || "",
+    description: p.description || "",
+
+    // ================= LOCATION =================
+
+    location: {
+      city: p.location?.city || "",
+      state: p.location?.state || "",
+      address: p.location?.address || "",
+      street: p.location?.street || "",
+      landmark: p.location?.landmark || "",
+      pincode: p.location?.pincode || "",
+      lat: Number(p.location?.lat) || 0,
+      lng: Number(p.location?.lng) || 0,
+    },
+
+    // Easy frontend access
+
+    city: p.location?.city || "",
+    state: p.location?.state || "",
+    address: p.location?.address || "",
+    street: p.location?.street || "",
+    landmark: p.location?.landmark || "",
+    pincode: p.location?.pincode || "",
+
+    // ================= INVESTMENT =================
+
+    totalValue,
+
+    totalShares,
+
+    companyReservedShares:
+      Number(p.companyReservedShares) || 10,
+
+    publicAvailableShares:
+      Number(p.publicAvailableShares) || 0,
+
+    availableShares:
+      Number(p.availableShares) || 0,
+
+    soldShares:
+      Number(p.soldShares) || 0,
+
+    soldPercent:
+      Number(p.soldPercent) || 0,
+
+    fundedPercent:
+      Number(p.soldPercent) || 0,
+
+    // ================= SHARE PRICE =================
+
+    pricePerShare,
+
+    sharePrice: pricePerShare,
+
+    currentPricePerShare:
+      Number(p.currentPricePerShare) ||
+      pricePerShare,
+
+    // ================= RETURNS =================
+
+    roi:
+      Number(p.roi) || 0,
+
+    expectedROI:
+      Number(p.roi) || 0,
+
+    targetROI:
+      Number(p.targetROI) || 0,
+
+    rentalYield:
+      Number(p.rentalYield) || 0,
+
+    appreciation:
+      Number(p.appreciation) || 0,
+
+    duration:
+      Number(p.duration) || 0,
+
+    // ================= SHARE SETTINGS =================
+
+    shareBuyingCycle:
+      Number(p.shareBuyingCycle) || 10,
+
+    stakeholderUnit:
+      Number(p.stakeholderUnit) || 10,
+
+    lockInYears:
+      Number(p.lockInYears) || 2,
+
+    enableFullOwnership:
+      p.enableFullOwnership ?? false,
+
+    // ================= DETAILS =================
+
+    amenities:
+      Array.isArray(p.amenities)
+        ? p.amenities
+        : [],
+
+    highlights:
+      Array.isArray(p.highlights)
+        ? p.highlights
+        : [],
+
+    tenants:
+      p.tenants || "",
+
+    propertyGrade:
+      p.propertyGrade || "",
+
+    // ================= STATUS =================
+
+    status:
+      p.status || "funding",
+
+    isFeatured:
+      p.isFeatured ?? false,
+
+    isPublished:
+      p.isPublished ?? true,
+
+    // ================= MEDIA =================
+
+    media: {
+      images:
+        p.media?.images || [],
+
+      documents:
+        p.media?.documents || [],
+
+      video:
+        p.media?.video || "",
+
+      brochure:
+        p.media?.brochure || "",
+    },
+
+    image:
+      p.media?.images?.[0] || "",
+
+    createdAt:
+      p.createdAt,
+
+    updatedAt:
+      p.updatedAt,
+  };
+};
 
     exports.createProperty = async (req, res) => {
       console.log("👉 BODY:", req.body);
@@ -117,6 +290,17 @@ return res.status(400).json({
     
         // Initially 0% shares sold
         const soldPercent = 0;
+
+        const totalValueNum = Number(totalValue) || 0;
+
+const calculatedPricePerShare =
+  Number(pricePerShare) > 0
+    ? Number(pricePerShare)
+    : totalSharesNum > 0
+    ? Number(
+        (totalValueNum / totalSharesNum).toFixed(2)
+      )
+    : 0;
     
         // Property funding status
         let status = "funding";
@@ -166,7 +350,7 @@ return res.status(400).json({
         
           status: status,
         
-          pricePerShare: Number(pricePerShare) || 0,
+          pricePerShare: calculatedPricePerShare,
         
           roi: Number(expectedROI) || 0,
           targetROI: Number(targetROI) || 0,
@@ -214,149 +398,52 @@ return res.status(400).json({
       }
     };
     //broker
-
     exports.getMyProperties = async (req, res) => {
+      try {
         const properties = await Property.find({
           createdBy: req.user.id,
+          isDeleted: { $ne: true },
+        }).sort({
+          createdAt: -1,
         });
-      
-        res.json(properties);
-      };
+    
+        const formatted = properties.map((property) =>
+          formatProperty(property)
+        );
+    
+        return res.status(200).json({
+          success: true,
+          data: formatted,
+        });
+    
+      } catch (error) {
+        return res.status(500).json({
+          success: false,
+          error: error.message,
+        });
+      }
+    };
 
     
     //   user
     exports.getPropertyById = async (req, res) => {
       try {
-        const p = await Property.findById(req.params.id);
+        const property = await Property.findOne({
+          _id: req.params.id,
+          isDeleted: { $ne: true },
+        });
     
-        if (!p) {
+        if (!property) {
           return res.status(404).json({
+            success: false,
             message: "Property not found",
           });
         }
     
-        res.json({
-          _id: p._id,
-    
-          // ================= BASIC =================
-    
-          name: p.name || "",
-          category: p.category || "",
-          type: p.type || "",
-          size: p.size || "",
-          description: p.description || "",
-    
-          // ================= LOCATION =================
-    
-          location: {
-            city: p.location?.city || "",
-            state: p.location?.state || "",
-            address: p.location?.address || "",
-            street: p.location?.street || "",
-            landmark: p.location?.landmark || "",
-            pincode: p.location?.pincode || "",
-            lat: p.location?.lat || "",
-            lng: p.location?.lng || "",
-          },
-    
-          // ================= PROPERTY VALUE =================
-    
-          totalValue: p.totalValue || 0,
-          totalShares: p.totalShares || 0,
-    
-          companyReservedShares:
-            p.companyReservedShares ?? 10,
-    
-          publicAvailableShares:
-            p.publicAvailableShares ?? 0,
-    
-          availableShares:
-            p.availableShares ?? 0,
-    
-          soldShares:
-            p.soldShares ?? 0,
-    
-          soldPercent:
-            p.soldPercent ?? 0,
-    
-          pricePerShare:
-            p.pricePerShare || 0,
-    
-          // ================= RETURNS =================
-    
-          roi: p.roi || 0,
-    
-          targetROI:
-            p.targetROI || 0,
-    
-          rentalYield:
-            p.rentalYield || 0,
-    
-          appreciation:
-            p.appreciation || 0,
-    
-          duration:
-            p.duration || 0,
-    
-          // ================= SHARE SETTINGS =================
-    
-          shareBuyingCycle:
-            p.shareBuyingCycle || 10,
-    
-          stakeholderUnit:
-            p.stakeholderUnit || 10,
-    
-          lockInYears:
-            p.lockInYears ?? 2,
-    
-          enableFullOwnership:
-            p.enableFullOwnership ?? false,
-    
-          // ================= DETAILS =================
-    
-          amenities:
-            p.amenities || [],
-    
-          highlights:
-            p.highlights || [],
-    
-          tenants:
-            p.tenants || "",
-    
-          propertyGrade:
-            p.propertyGrade || "",
-    
-          // ================= STATUS =================
-    
-          
-
-
-            status: p.status || "funding",
-
-isFeatured: p.isFeatured || false,
-
-isPublished: p.isPublished ?? true,
-
-pricePerShare: p.pricePerShare || 0,
-    
-          // ================= MEDIA =================
-    
-          media: {
-            images:
-              p.media?.images || [],
-    
-            documents:
-              p.media?.documents || [],
-    
-            video:
-              p.media?.video || "",
-    
-            brochure:
-              p.media?.brochure || "",
-          },
-    
-          createdAt: p.createdAt,
-        });
+        // Direct formatted property return
+        return res.status(200).json(
+          formatProperty(property)
+        );
     
       } catch (error) {
         console.error(
@@ -364,8 +451,11 @@ pricePerShare: p.pricePerShare || 0,
           error
         );
     
-        res.status(500).json({
-          error: error.message,
+        return res.status(500).json({
+          success: false,
+          message:
+            error.message ||
+            "Failed to fetch property",
         });
       }
     };
@@ -379,11 +469,13 @@ pricePerShare: p.pricePerShare || 0,
           return res.status(404).json({ message: "Property not found" });
         }
 
-        let properties = await Property.find({
-          _id: { $ne: req.params.id },
-          type: current.type,
-          isPublished: true
-        }).limit(3);
+        if (properties.length === 0) {
+          properties = await Property.find({
+            _id: { $ne: req.params.id },
+            isPublished: true,
+            isDeleted: { $ne: true },
+          }).limit(3);
+        }
 
         // 👉 fallback (agar same type na mile)
         if (properties.length === 0) {
@@ -393,7 +485,12 @@ pricePerShare: p.pricePerShare || 0,
           }).limit(3);
         }
 
-        res.json(properties);
+        return res.status(200).json({
+          success: true,
+          data: properties.map((property) =>
+            formatProperty(property)
+          ),
+        });
 
       } catch (error) {
         res.status(500).json({ error: error.message });
@@ -402,12 +499,28 @@ pricePerShare: p.pricePerShare || 0,
 
     exports.getAllProperties = async (req, res) => {
       try {
-        const properties = await Property.find({ isPublished: true, isDeleted: { $ne: true } })
-          .sort({ createdAt: -1 }); // 🔥 newest first
-
-        res.json(properties);
+        const properties = await Property.find({
+          isPublished: true,
+          isDeleted: { $ne: true },
+        }).sort({
+          createdAt: -1,
+        });
+    
+        const formatted =
+          properties.map((property) =>
+            formatProperty(property)
+          );
+    
+        return res.status(200).json({
+          success: true,
+          data: formatted,
+        });
+    
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        return res.status(500).json({
+          success: false,
+          error: error.message,
+        });
       }
     };
 
@@ -823,29 +936,34 @@ property.media.images = [
         // PRICE PER SHARE
         // ==========================================
     
-        if (
-          req.body.pricePerShare !== undefined &&
-          req.body.pricePerShare !== ""
-        ) {
-    
-          property.pricePerShare =
-            Number(
-              req.body.pricePerShare
-            ) || 0;
-    
-        } else if (
-          property.totalValue &&
-          property.totalShares
-        ) {
-    
-          property.pricePerShare =
-            Number(
-              (
-                property.totalValue /
-                property.totalShares
-              ).toFixed(2)
-            );
-        }
+        const hasCustomPrice =
+  req.body.pricePerShare !== undefined &&
+  req.body.pricePerShare !== "" &&
+  Number(req.body.pricePerShare) > 0;
+
+if (hasCustomPrice) {
+
+  property.pricePerShare =
+    Number(req.body.pricePerShare);
+
+} else if (
+  Number(property.totalValue) > 0 &&
+  Number(property.totalShares) > 0
+) {
+
+  property.pricePerShare =
+    Number(
+      (
+        Number(property.totalValue) /
+        Number(property.totalShares)
+      ).toFixed(2)
+    );
+
+} else {
+
+  property.pricePerShare = 0;
+
+}
     
     
         // ==========================================
@@ -1065,18 +1183,37 @@ property.media.images = [
         res.json(properties);
       };
 
-      exports.getFeaturedProperties = async (req, res) => {
+      exports.getFeaturedProperties = async (
+        req,
+        res
+      ) => {
         try {
-          const properties = await Property.find({
-            isFeatured: true,
-            isPublished: true,
-          })
-            .sort({ createdAt: -1 })
-            .limit(6);
+          const properties =
+            await Property.find({
+              isFeatured: true,
+              isPublished: true,
+              isDeleted: { $ne: true },
+            })
+              .sort({
+                createdAt: -1,
+              })
+              .limit(6);
       
-          res.json(properties);
+          const formatted =
+            properties.map((property) =>
+              formatProperty(property)
+            );
+      
+          return res.status(200).json({
+            success: true,
+            data: formatted,
+          });
+      
         } catch (error) {
-          res.status(500).json({ error: error.message });
+          return res.status(500).json({
+            success: false,
+            error: error.message,
+          });
         }
       };
 
@@ -1099,13 +1236,13 @@ property.media.images = [
       
           let query = {
             isPublished: true,
+            isDeleted: { $ne: true },
           };
       
           query.$and = [];
       
-          // ===========================
-          // SEARCH
-          // ===========================
+          // ================= SEARCH =================
+      
           if (search) {
             query.$and.push({
               $or: [
@@ -1122,6 +1259,12 @@ property.media.images = [
                   },
                 },
                 {
+                  "location.state": {
+                    $regex: search,
+                    $options: "i",
+                  },
+                },
+                {
                   type: {
                     $regex: search,
                     $options: "i",
@@ -1131,71 +1274,76 @@ property.media.images = [
             });
           }
       
-          // ===========================
-          // CITY
-          // ===========================
+          // ================= CITY =================
+      
           if (city) {
-            const cities = Array.isArray(city) ? city : [city];
+            const cities = Array.isArray(city)
+              ? city
+              : [city];
       
             query.$and.push({
               "location.city": {
-                $in: cities.map((c) => new RegExp(`^${c.trim()}$`, "i")),
+                $in: cities.map(
+                  (c) =>
+                    new RegExp(
+                      `^${c.trim()}$`,
+                      "i"
+                    )
+                ),
               },
             });
           }
       
-          // ===========================
-          // PROPERTY TYPE
-          // ===========================
+          // ================= TYPE =================
+      
           if (type) {
             query.type = type;
           }
       
-          // ===========================
-          // ROI
-          // ===========================
+          // ================= ROI =================
+      
           if (minROI || maxROI) {
             query.roi = {};
       
             if (minROI) {
-              query.roi.$gte = Number(minROI);
+              query.roi.$gte =
+                Number(minROI);
             }
       
             if (maxROI) {
-              query.roi.$lte = Number(maxROI);
+              query.roi.$lte =
+                Number(maxROI);
             }
           }
       
-          // ===========================
-          // PRICE
-          // ===========================
+          // ================= TOTAL VALUE =================
+      
           if (minPrice || maxPrice) {
             query.totalValue = {};
       
             if (minPrice) {
-              query.totalValue.$gte = Number(minPrice);
+              query.totalValue.$gte =
+                Number(minPrice);
             }
       
             if (maxPrice) {
-              query.totalValue.$lte = Number(maxPrice);
+              query.totalValue.$lte =
+                Number(maxPrice);
             }
           }
       
-          // ===========================
-          // STATUS
-          // ===========================
+          // ================= STATUS =================
+      
           if (status) {
             query.status = status;
           }
       
-          // remove empty $and
           if (query.$and.length === 0) {
             delete query.$and;
           }
       
-          // ===========================
-          // SORT
-          // ===========================
+          // ================= SORT =================
+      
           let sortOption = {
             createdAt: -1,
           };
@@ -1218,83 +1366,62 @@ property.media.images = [
             };
           }
       
-          // ===========================
-          // PAGINATION
-          // ===========================
-          const skip = (Number(page) - 1) * Number(limit);
+          // ================= PAGINATION =================
       
-          console.log("Query =>", query);
-
-const properties = await Property.find(query)
-  .sort(sortOption)
-  .skip(skip)
-  .limit(Number(limit));
-
-console.log("Found =>", properties.length);
-
-console.log(
-  properties.map((p) => ({
-    name: p.name,
-    published: p.isPublished,
-  }))
-);
+          const pageNumber =
+            Math.max(Number(page), 1);
       
-          const total = await Property.countDocuments(query);
+          const limitNumber =
+            Math.max(Number(limit), 1);
       
-          const formatted = properties.map((p) => ({
-            id: p._id,
-            name: p.name,
-            location: p.location,
-            city: p.location?.city,
-            image: p.media?.images?.[0] || "",
-          
-            roi: p.roi,
-            totalValue: p.totalValue,
-            sharePrice: p.pricePerShare,
-          
-            totalShares: p.totalShares,
-            availableShares: p.availableShares,
-            soldShares: p.soldShares,
-            soldPercent: p.soldPercent,
-          
-            fundedPercent: Number((p.soldPercent || 0).toFixed(2)),
-          
-            type: p.type,
-            status: p.status,
-          
-            // ================= SHARE SETTINGS =================
-          
-            // Backend se actual lock-in period
-            lockInYears: p.lockInYears ?? 2,
-          
-            // Property ka buying cycle
-            shareBuyingCycle: p.shareBuyingCycle ?? 10,
-          
-            // Fixed stakeholder rule
-            stakeholderUnit: p.stakeholderUnit ?? 10,
-          
-            // Company reserved shares
-            companyReservedShares: p.companyReservedShares ?? 10,
-          
-            // Public investor shares
-            publicAvailableShares: p.publicAvailableShares ?? 0,
-          
-            // 100% ownership allowed or not
-            enableFullOwnership: p.enableFullOwnership ?? false,
-          }));
+          const skip =
+            (pageNumber - 1) *
+            limitNumber;
       
-          res.json({
+          console.log(
+            "EXPLORE QUERY:",
+            query
+          );
+      
+          const properties =
+            await Property.find(query)
+              .sort(sortOption)
+              .skip(skip)
+              .limit(limitNumber);
+      
+          const total =
+            await Property.countDocuments(query);
+      
+          // 🔥 COMPLETE DATA FORMAT
+      
+          const formatted =
+            properties.map((property) =>
+              formatProperty(property)
+            );
+      
+          return res.status(200).json({
+            success: true,
+      
             data: formatted,
+      
             pagination: {
               total,
-              page: Number(page),
-              pages: Math.ceil(total / limit),
+              page: pageNumber,
+              limit: limitNumber,
+              pages: Math.ceil(
+                total / limitNumber
+              ),
             },
           });
-        } catch (error) {
-          console.log(error);
       
-          res.status(500).json({
+        } catch (error) {
+          console.error(
+            "EXPLORE PROPERTY ERROR:",
+            error
+          );
+      
+          return res.status(500).json({
+            success: false,
             error: error.message,
           });
         }
@@ -1437,38 +1564,32 @@ console.log(
       
           // Filter nearby properties
           const nearbyProperties = properties
-            .map((property) => {
-              const distance = calculateDistance(
-                userLat,
-                userLng,
-                Number(property.location.lat),
-                Number(property.location.lng)
-              );
-      
-              return {
-                id: property._id,
-                name: property.name,
-                type: property.type,
-      
-                location: property.location,
-      
-                image: property.media?.images?.[0] || "",
-      
-                roi: property.roi,
-                totalValue: property.totalValue,
-                sharePrice: property.pricePerShare,
-      
-                fundedPercent: Number(
-                  (property.soldPercent || 0).toFixed(2)
-                ),
-      
-                status: property.status,
-      
-                distance: Number(distance.toFixed(2)),
-              };
-            })
-            .filter((property) => property.distance <= radiusInKm)
-            .sort((a, b) => a.distance - b.distance);
+  .map((property) => {
+
+    const distance =
+      calculateDistance(
+        userLat,
+        userLng,
+        Number(property.location.lat),
+        Number(property.location.lng)
+      );
+
+    return {
+      ...formatProperty(property),
+
+      distance:
+        Number(distance.toFixed(2)),
+    };
+
+  })
+  .filter(
+    (property) =>
+      property.distance <= radiusInKm
+  )
+  .sort(
+    (a, b) =>
+      a.distance - b.distance
+  );
       
           return res.status(200).json({
             success: true,

@@ -464,36 +464,43 @@ const calculatedPricePerShare =
     exports.getRelatedProperties = async (req, res) => {
       try {
         const current = await Property.findById(req.params.id);
-
+    
         if (!current) {
-          return res.status(404).json({ message: "Property not found" });
+          return res.status(404).json({
+            message: "Property not found",
+          });
         }
-
+    
+        // First: same type ki properties find karo
+        let properties = await Property.find({
+          _id: { $ne: current._id },
+          type: current.type,
+          isPublished: true,
+          isDeleted: { $ne: true },
+        }).limit(3);
+    
+        // Fallback: agar same type ki properties nahi mili
         if (properties.length === 0) {
           properties = await Property.find({
-            _id: { $ne: req.params.id },
+            _id: { $ne: current._id },
             isPublished: true,
             isDeleted: { $ne: true },
           }).limit(3);
         }
-
-        // 👉 fallback (agar same type na mile)
-        if (properties.length === 0) {
-          properties = await Property.find({
-            _id: { $ne: req.params.id },
-            isPublished: true
-          }).limit(3);
-        }
-
+    
         return res.status(200).json({
           success: true,
           data: properties.map((property) =>
             formatProperty(property)
           ),
         });
-
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error("GET RELATED PROPERTIES ERROR:", error);
+    
+        return res.status(500).json({
+          success: false,
+          error: error.message,
+        });
       }
     };
 

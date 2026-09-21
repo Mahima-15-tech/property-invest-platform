@@ -5,7 +5,8 @@ const Exit = require("../models/exit");
 const KYC = require("../models/kyc");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-
+const nodemailer = require("nodemailer");
+const crypto = require("crypto");
 
 const ReferralProgram = require("../models/referralProgram");
 const ReferralReward = require("../models/referralReward");
@@ -13,6 +14,52 @@ const PaymentSetting = require("../models/paymentSetting");
 const Commission = require("../models/commission");const CommissionSetting = require(
   "../models/commissionSetting"
 );
+
+
+// =====================================================
+// GMAIL SMTP TRANSPORTER
+// =====================================================
+
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
+  auth: {
+    user: process.env.SMTP_EMAIL,
+    pass: process.env.SMTP_PASSWORD,
+  },
+});
+
+const generateOtp = () => {
+  return crypto.randomInt(100000, 1000000).toString();
+};
+
+const sendAdminOtpEmail = async (email, otp) => {
+
+  console.log("📧 ADMIN OTP EMAIL FUNCTION HIT");
+  console.log("EMAIL:", email);
+  console.log("SMTP EMAIL:", process.env.SMTP_EMAIL);
+  console.log(
+    "SMTP PASSWORD LOADED:",
+    !!process.env.SMTP_PASSWORD
+  );
+
+  await transporter.sendMail({
+    from: `"Pronex World" <${process.env.SMTP_EMAIL}>`,
+    to: email,
+    subject: "Pronex World - Admin Password Reset OTP",
+
+    html: `
+      <h2>Admin Password Reset</h2>
+      <p>Your OTP is:</p>
+      <h1>${otp}</h1>
+      <p>This OTP is valid for 10 minutes.</p>
+    `,
+  });
+
+  console.log("✅ ADMIN OTP EMAIL SENT");
+};
+
 
 exports.adminLogin = async (req, res) => {
   try {
@@ -2351,6 +2398,7 @@ exports.changeAdminPassword = async (req, res) => {
 // ==========================================
 
 exports.adminForgotPassword = async (req, res) => {
+  console.log("🔥 ADMIN FORGOT PASSWORD API HIT");
   try {
     const { email } = req.body;
 
@@ -2361,9 +2409,9 @@ exports.adminForgotPassword = async (req, res) => {
       });
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail =
+      email.trim().toLowerCase();
 
-    // Find admin
     const admin = await User.findOne({
       email: normalizedEmail,
       role: "admin",
@@ -2376,13 +2424,10 @@ exports.adminForgotPassword = async (req, res) => {
       });
     }
 
-    // Generate 6 digit OTP
-    const otp = Math.floor(
-      100000 + Math.random() * 900000
-    ).toString();
+    const otp = generateOtp();
 
-    // OTP valid for 10 minutes
     admin.otp = otp;
+
     admin.otpExpiry = new Date(
       Date.now() + 10 * 60 * 1000
     );
@@ -2391,19 +2436,15 @@ exports.adminForgotPassword = async (req, res) => {
 
     await admin.save();
 
-    // TEMPORARY - console me OTP dikhega
-    console.log("=================================");
-    console.log("ADMIN PASSWORD RESET OTP:", otp);
-    console.log("EMAIL:", admin.email);
-    console.log("=================================");
+    // SEND REAL EMAIL
+    await sendAdminOtpEmail(
+      normalizedEmail,
+      otp
+    );
 
     return res.status(200).json({
       success: true,
-      message: "OTP generated successfully",
-
-      // ⚠️ TEMPORARY ONLY
-      // Production me isko remove kar dena
-      otp,
+      message: "OTP sent successfully to your email",
     });
 
   } catch (error) {
@@ -2414,7 +2455,7 @@ exports.adminForgotPassword = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to generate OTP",
+      message: "Failed to send OTP",
     });
   }
 };

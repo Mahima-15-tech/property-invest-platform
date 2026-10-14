@@ -102,6 +102,15 @@ exports.invest = async (req, res) => {
       });
     }
 
+
+if (user.role === "broker") {
+  return res.status(403).json({
+    success: false,
+    message: "Brokers cannot invest using their broker account. Please use a separate investor account.",
+  });
+}
+
+
     if (!property) {
       return res.status(404).json({
         message: "Property not found",
@@ -218,39 +227,89 @@ exports.invest = async (req, res) => {
   }
 };
 
+
 exports.getCheckoutData = async (req, res) => {
   try {
-    const p = await Property.findById(req.params.propertyId);
-
-    res.json({
-      id: p._id,
-      name: p.name,
-    
-      location: {
-        city: p.location?.city,
-        state: p.location?.state,
-      },
-    
-      image: p.media?.images?.[0],
-    
-      // 🔥 IMPORTANT FIX
-      sharePrice: p.pricePerShare,
-      totalShares: p.totalShares,        // ✅ ADD THIS (must)
-      sharesLeft: p.availableShares, 
-          // frontend ke liye
-          shareBuyingCycle: p.shareBuyingCycle || 10,
-          stakeholderUnit: p.stakeholderUnit || 10,
-          lockInYears: p.lockInYears || 2,
-          companyReservedShares: p.companyReservedShares || 10,
-          enableFullOwnership: p.enableFullOwnership || false,
-      roi: p.roi,
-      fundedPercent: p.soldPercent,
+    const p = await Property.findOne({
+      _id: req.params.propertyId,
+      isDeleted: { $ne: true },
     });
 
+    if (!p) {
+      return res.status(404).json({
+        success: false,
+        message: "Property not found",
+      });
+    }
+
+    const availableShares = Math.max(
+      0,
+      Number(p.availableShares ?? 0)
+    );
+
+    // Fetch platform fee and tax settings
+    const feeSettings = await PlatformFeeSetting.findOne();
+
+    const platformFeeRate = Number(
+      feeSettings?.platformFeeRate ?? 0
+    );
+
+    const taxRate = Number(
+      feeSettings?.taxRate ?? 0
+    );
+
+    return res.status(200).json({
+      success: true,
+      id: p._id,
+      _id: p._id,
+      name: p.name,
+
+      location: {
+        city: p.location?.city || "",
+        state: p.location?.state || "",
+      },
+
+      image: p.media?.images?.[0] || "",
+
+      totalValue: Number(p.totalValue || 0),
+      totalShares: Number(p.totalShares || 0),
+
+      // Same source for all frontend screens
+      availableShares,
+      sharesLeft: availableShares,
+
+      sharePrice: Number(p.pricePerShare || 0),
+      pricePerShare: Number(p.pricePerShare || 0),
+
+      shareBuyingCycle: Number(p.shareBuyingCycle || 10),
+      stakeholderUnit: Number(p.stakeholderUnit || 10),
+      lockInYears: Number(p.lockInYears || 2),
+
+      companyReservedShares: Number(
+        p.companyReservedShares ?? 10
+      ),
+
+      enableFullOwnership: Boolean(p.enableFullOwnership),
+      roi: Number(p.roi || 0),
+      rentalYield: Number(p.rentalYield || 0),
+      appreciation: Number(p.appreciation || 0),
+      fundedPercent: Number(p.soldPercent || 0),
+
+      // Platform charges configuration
+      platformFeeRate,
+      taxRate,
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("GET CHECKOUT DATA ERROR:", err);
+
+    return res.status(500).json({
+      success: false,
+      message:
+        err.message || "Failed to fetch checkout data",
+    });
   }
 };
+
 
 exports.createInvestment = async (req, res) => {
   console.log("🔥 API HIT /createInvestment");
@@ -282,6 +341,15 @@ exports.createInvestment = async (req, res) => {
         message: "User not found",
       });
     }
+
+
+if (user.role === "broker") {
+  return res.status(403).json({
+    success: false,
+    message: "Brokers cannot invest using their broker account. Please use a separate investor account.",
+  });
+}
+
 
     // ==========================================
     // 3. KYC COMPLETION CHECK
@@ -374,10 +442,11 @@ exports.createInvestment = async (req, res) => {
     // BROKER REFERRAL DOES NOT GIVE DISCOUNT
     // ==========================================
 
-    const discount = 0;
+   const discount = 0;
 
-    // Investor pays the complete investment amount.
-    const finalAmount = amount;
+const charges = await calculatePlatformCharges(amount);
+
+const finalAmount = charges.totalPayable;
 
     // IMPORTANT:
     // Do NOT set user.referredBy here.
@@ -468,7 +537,15 @@ exports.createInvestment = async (req, res) => {
       // Broker referral never gives discount.
       discount: 0,
 
-      finalAmount: amount,
+finalAmount: charges.totalPayable,
+
+platformFeeRate: charges.platformFeeRate,
+platformFeeAmount: charges.platformFeeAmount,
+
+taxRate: charges.taxRate,
+taxAmount: charges.taxAmount,
+
+totalPayable: charges.totalPayable,
 
       // ================= OWNERSHIP =================
 
@@ -613,6 +690,43 @@ exports.validateReferralCode = async (req, res) => {
       message: err.message,
     });
   }
+};
+
+const PlatformFeeSetting = require("../models/platformFeeSetting");
+
+const calculatePlatformCharges = async (investmentAmount) => {
+  let settings = await PlatformFeeSetting.findOne();
+
+  if (!settings) {
+    settings = await PlatformFeeSetting.create({
+      platformFeeRate: 0,
+      taxRate: 0,
+    });
+  }
+
+  const platformFeeRate = Number(settings.platformFeeRate || 0);
+  const taxRate = Number(settings.taxRate || 0);
+
+  const platformFeeAmount = Number(
+    ((investmentAmount * platformFeeRate) / 100).toFixed(2)
+  );
+
+  // Tax sirf platform fee par lagega
+  const taxAmount = Number(
+    ((platformFeeAmount * taxRate) / 100).toFixed(2)
+  );
+
+  const totalPayable = Number(
+    (investmentAmount + platformFeeAmount + taxAmount).toFixed(2)
+  );
+
+  return {
+    platformFeeRate,
+    platformFeeAmount,
+    taxRate,
+    taxAmount,
+    totalPayable,
+  };
 };
 
 exports.submitPaymentProof = async (req, res) => {

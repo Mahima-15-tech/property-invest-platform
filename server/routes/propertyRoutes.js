@@ -64,6 +64,12 @@ router.get(
   property.getRelatedProperties
 );
 
+router.get(
+  "/admin-list",
+  protect,
+  authorize("admin"),
+  property.getAdminProperties
+);
 
 // ======================================================
 // ALL PROPERTIES
@@ -150,6 +156,19 @@ router.delete(
   authorize("admin"),
   property.deleteProperty
 );
+
+
+router.patch(
+  "/:id/publish",
+  protect,
+  authorize("admin"),
+  property.togglePublish
+);
+
+
+
+
+
 
 
 module.exports = router;

@@ -3,6 +3,8 @@ const Property = require("../models/property");
 const Return = require("../models/return");
 const Payment = require("../models/payment");
 const Exit = require("../models/exit");
+const User = require("../models/user");
+const KYC = require("../models/kyc");
 
 exports.getPortfolio = async (req, res) => {
   try {
@@ -118,9 +120,11 @@ exports.getPortfolio = async (req, res) => {
           state:
             p.location?.state || "",
 
-          image:
-            p.media?.images?.[0] ||
-            null,
+            image: p.media?.images?.[0] || null,
+
+            images: Array.isArray(p.media?.images)
+              ? p.media.images.filter(Boolean)
+              : [],
 
           type:
             p.type || "Property",
@@ -470,38 +474,40 @@ exports.getPaymentHistory = async (req, res) => {
   }
 };
 
+
+
+
 exports.getDocuments = async (req, res) => {
-  const investments = await Investment.find({
-    userId: req.user.id,
-    status: "approved",
-  }).populate("propertyId");
+  try {
+    const userId = req.user.id;
 
-  const KYC = require("../models/kyc");
-  const kyc = await KYC.findOne({ userId: req.user.id });
+    const [investments, kyc, user] = await Promise.all([
+      Investment.find({
+        userId,
+        status: "approved",
+      }).populate("propertyId"),
 
-  const docs = [];
+      KYC.findOne({ userId }),
 
-  //  property docs
-  investments.forEach((inv) => {
+      User.findById(userId).select("name email phone kycStatus"),
+    ]);
 
-    if (!inv.propertyId) return;
+    const docs = [];
 
-    inv.propertyId.media?.documents?.forEach((doc) => {
+    investments.forEach((inv) => {
+      if (!inv.propertyId) return;
 
+      inv.propertyId.media?.documents?.forEach((doc) => {
         docs.push({
-            type: "property",
-            property: inv.propertyId.name,
-            name: doc.name,
-            url: doc.url,
+          type: "property",
+          property: inv.propertyId.name,
+          name: doc.name,
+          url: doc.url,
         });
-
+      });
     });
 
-});
-
-  // 🔥 KYC docs
-  if (kyc) {
-    if (kyc.panFile) {
+    if (kyc?.panFile) {
       docs.push({
         type: "kyc",
         name: "PAN Card",
@@ -509,7 +515,7 @@ exports.getDocuments = async (req, res) => {
       });
     }
 
-    if (kyc.aadhaarFile) {
+    if (kyc?.aadhaarFile) {
       docs.push({
         type: "kyc",
         name: "Aadhaar",
@@ -517,20 +523,72 @@ exports.getDocuments = async (req, res) => {
       });
     }
 
-    if (kyc.bank?.cancelCheque) {
+    if (kyc?.bank?.cancelCheque) {
       docs.push({
         type: "kyc",
         name: "Cancelled Cheque",
         url: kyc.bank.cancelCheque,
       });
     }
-  }
 
-  res.json({
-    documents: docs,
-    kycDetails: kyc
-  });
+    // Resolve the current status from both saved records
+    const rawStatus = String(
+      kyc?.approvalStatus ||
+      kyc?.status ||
+      user?.kycStatus ||
+      "pending"
+    ).toLowerCase();
+
+    const normalizedStatus =
+      rawStatus === "approved" || rawStatus === "verified"
+        ? "approved"
+        : rawStatus === "rejected"
+        ? "rejected"
+        : rawStatus === "submitted" || rawStatus === "pending"
+        ? "pending"
+        : rawStatus;
+
+        const kycDetails = kyc
+        ? {
+            ...kyc.toObject(),
+            fullName: kyc.fullName || user?.name || "",
+            email: kyc.email || user?.email || "",
+            phone: user?.phone || "",
+            status: normalizedStatus,
+            approvalStatus: normalizedStatus,
+      
+            // ADD THESE TWO FIELDS
+            rejectionType: kyc.rejectionType || null,
+            rejectionMessage: kyc.rejectionMessage || "",
+          }
+        : {
+            fullName: user?.name || "",
+            email: user?.email || "",
+            phone: user?.phone || "",
+            status: normalizedStatus,
+            approvalStatus: normalizedStatus,
+            rejectionType: null,
+            rejectionMessage: "",
+          };
+
+    return res.json({
+      success: true,
+      documents: docs,
+      kycDetails,
+    });
+  } catch (error) {
+    console.error("FETCH DOCUMENTS ERROR:", error);
+  
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch documents",
+      error: error.message
+    });
+  }
 };
+
+
+
 
 exports.createExitRequest = async (req, res) => {
   try {

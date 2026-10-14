@@ -6,7 +6,20 @@ const protect = require("../middleware/authmiddleware");
 const authorize = require("../middleware/roleMiddleware");
 const {
   uploadPaymentQR,
+  uploadKycDocuments,
 } = require("../middleware/upload");
+const { uploadApk } = require("../middleware/upload");
+
+const kycController = require("../controllers/kycController");
+
+// Existing authentication/admin middleware ko bhi retain karna.
+router.put(
+  "/investors/:id/kyc",
+  protect,
+  authorize("admin"),
+  uploadKycDocuments,
+  kycController.updateKycDetails
+);
 
 router.post("/login", admin.adminLogin);
 
@@ -69,6 +82,14 @@ router.patch(
   protect,
   authorize("admin"),
   admin.rejectKyc
+);
+
+router.post(
+  "/app/upload-apk",
+  protect,
+  authorize("admin"),
+  uploadApk,
+  admin.uploadLatestApk
 );
 
 // ==========================
@@ -231,6 +252,20 @@ router.put(
   protect,
   authorize("admin"),
   admin.changeAdminPassword
+);
+
+router.get(
+  "/platform-fee-settings",
+  protect,
+  authorize("admin"),
+  admin.getPlatformFeeSettings
+);
+
+router.put(
+  "/platform-fee-settings",
+  protect,
+  authorize("admin"),
+  admin.updatePlatformFeeSettings
 );
 
 module.exports = router;

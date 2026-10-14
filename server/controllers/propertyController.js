@@ -128,7 +128,9 @@ const formatProperty = (p) => {
       Array.isArray(p.highlights)
         ? p.highlights
         : [],
-
+    dueDiligenceNote: p.dueDiligenceNote || "",
+    legalDocumentTitle: p.legalDocumentTitle || "",
+legalDocumentContent: p.legalDocumentContent || "",
     tenants:
       p.tenants || "",
 
@@ -204,6 +206,7 @@ const formatProperty = (p) => {
           duration,
           tenants,
           propertyGrade,
+          dueDiligenceNote,
     
           // NEW SHARE SETTINGS
           shareBuyingCycle,
@@ -364,6 +367,9 @@ const calculatedPricePerShare =
         
           tenants: tenants || "",
           propertyGrade: propertyGrade || "",
+          dueDiligenceNote: (dueDiligenceNote || "").trim(),
+          legalDocumentTitle: (req.body.legalDocumentTitle || "").trim(),
+legalDocumentContent: req.body.legalDocumentContent || "",
         
           media: {
             images: imageUrls,
@@ -430,6 +436,7 @@ const calculatedPricePerShare =
       try {
         const property = await Property.findOne({
           _id: req.params.id,
+          isPublished: true,
           isDeleted: { $ne: true },
         });
     
@@ -1108,7 +1115,29 @@ if (hasCustomPrice) {
           property.propertyGrade =
             req.body.propertyGrade;
         }
+
+        // ==========================================
+// DUE DILIGENCE NOTE
+// ==========================================
+if (req.body.dueDiligenceNote !== undefined) {
+  property.dueDiligenceNote = String(req.body.dueDiligenceNote).trim();
+}
     
+// ==========================================
+// LEGAL DOCUMENT
+// ==========================================
+
+if (req.body.legalDocumentTitle !== undefined) {
+  property.legalDocumentTitle = String(
+    req.body.legalDocumentTitle
+  ).trim();
+}
+
+if (req.body.legalDocumentContent !== undefined) {
+  property.legalDocumentContent = String(
+    req.body.legalDocumentContent
+  );
+}
     
         // ==========================================
         // FEATURED
@@ -1546,6 +1575,7 @@ if (hasCustomPrice) {
           // Get published properties having location
           const properties = await Property.find({
             isPublished: true,
+            isDeleted: { $ne: true },
             "location.lat": { $ne: null },
             "location.lng": { $ne: null },
           });
@@ -1700,6 +1730,89 @@ exports.restoreProperty = async (req, res) => {
       message:
         error.message ||
         "Failed to restore property",
+    });
+  }
+};
+
+
+exports.togglePublish = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isPublished } = req.body;
+
+    // Accept only an explicit boolean value.
+    if (typeof isPublished !== "boolean") {
+      return res.status(400).json({
+        success: false,
+        message: "isPublished must be a boolean value",
+      });
+    }
+
+    const property = await Property.findOne({
+      _id: id,
+      isDeleted: { $ne: true },
+    });
+
+    if (!property) {
+      return res.status(404).json({
+        success: false,
+        message: "Property not found",
+      });
+    }
+
+    property.isPublished = isPublished;
+
+    // An unpublished property should not remain featured.
+    if (!isPublished) {
+      property.isFeatured = false;
+    }
+
+    await property.save();
+
+    return res.status(200).json({
+      success: true,
+      message: isPublished
+        ? "Property published successfully"
+        : "Property unpublished successfully",
+      property: {
+        _id: property._id,
+        name: property.name,
+        isPublished: property.isPublished,
+        isFeatured: property.isFeatured,
+      },
+    });
+  } catch (error) {
+    console.error("TOGGLE PROPERTY PUBLISH ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to update publish status",
+    });
+  }
+};
+
+
+
+exports.getAdminProperties = async (req, res) => {
+  try {
+    const properties = await Property.find({
+      isDeleted: { $ne: true },
+    }).sort({ createdAt: -1 });
+
+    const formatted = properties.map((property) =>
+      formatProperty(property)
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: formatted,
+    });
+  } catch (error) {
+    console.error("GET ADMIN PROPERTIES ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch properties",
     });
   }
 };

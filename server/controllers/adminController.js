@@ -7,6 +7,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
+const PlatformFeeSetting = require("../models/platformFeeSetting");
 
 const ReferralProgram = require("../models/referralProgram");
 const ReferralReward = require("../models/referralReward");
@@ -14,6 +15,8 @@ const PaymentSetting = require("../models/paymentSetting");
 const Commission = require("../models/commission");const CommissionSetting = require(
   "../models/commissionSetting"
 );
+
+const AppVersion = require("../models/AppVersion");
 
 
 // =====================================================
@@ -121,6 +124,7 @@ exports.approveBroker = async (req, res) => {
     }
   };
 
+ 
   exports.approveKyc = async (req, res) => {
     try {
       const { id } = req.params;
@@ -129,67 +133,128 @@ exports.approveBroker = async (req, res) => {
   
       if (!user) {
         return res.status(404).json({
+          success: false,
           message: "User not found",
         });
       }
   
+      const kyc = await KYC.findOne({ userId: id });
+  
+      if (!kyc) {
+        return res.status(404).json({
+          success: false,
+          message: "KYC record not found",
+        });
+      }
+  
+      kyc.status = "approved";
+      kyc.approvalStatus = "approved";
+  
+      // Clear previous rejection details
+      kyc.rejectionType = null;
+      kyc.rejectionMessage = "";
+  
+      await kyc.save();
+  
       user.kycStatus = "approved";
       await user.save();
   
-      const kyc = await KYC.findOneAndUpdate(
-        { userId: id },
-        {
-          approvalStatus: "approved",
-        },
-        { new: true }
-      );
-  
-      res.json({
-        message: "KYC approved",
+      return res.status(200).json({
+        success: true,
+        message: "KYC approved successfully",
         status: kyc.status,
         approvalStatus: kyc.approvalStatus,
+        kycStatus: user.kycStatus,
       });
-  
     } catch (error) {
-      res.status(500).json({
-        message: error.message,
+      console.error("APPROVE KYC ERROR:", error);
+  
+      return res.status(500).json({
+        success: false,
+        message: error.message || "Failed to approve KYC",
       });
     }
   };
-  
-  
+
   exports.rejectKyc = async (req, res) => {
     try {
       const { id } = req.params;
+  
+      const { rejectionType, rejectionMessage } = req.body;
+  
+      // Validate rejection type
+      const allowedTypes = ["contact_bank", "full_kyc"];
+  
+      if (!allowedTypes.includes(rejectionType)) {
+        return res.status(400).json({
+          success: false,
+          message: "Please select a valid rejection type",
+        });
+      }
+  
+      // Rejection message is mandatory
+      if (
+        typeof rejectionMessage !== "string" ||
+        !rejectionMessage.trim()
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Rejection reason is required",
+        });
+      }
   
       const user = await User.findById(id);
   
       if (!user) {
         return res.status(404).json({
+          success: false,
           message: "User not found",
         });
       }
   
-      // USER MODEL
+      const kyc = await KYC.findOne({ userId: id });
+  
+      if (!kyc) {
+        return res.status(404).json({
+          success: false,
+          message: "KYC record not found",
+        });
+      }
+  
+      // Save rejection details
+      kyc.status = "rejected";
+      kyc.approvalStatus = "rejected";
+      kyc.rejectionType = rejectionType;
+      kyc.rejectionMessage = rejectionMessage.trim();
+  
+      await kyc.save();
+  
+      // Sync user KYC status
       user.kycStatus = "rejected";
       await user.save();
   
-      // KYC MODEL
-      await KYC.findOneAndUpdate(
-        { userId: id },
-        { status: "rejected" }
-      );
-  
-      res.json({
-        message: "KYC rejected",
+      return res.status(200).json({
+        success: true,
+        message: "KYC rejected successfully",
+        status: kyc.status,
+        approvalStatus: kyc.approvalStatus,
+        kycStatus: user.kycStatus,
+        rejectionType: kyc.rejectionType,
+        rejectionMessage: kyc.rejectionMessage,
       });
-  
     } catch (error) {
-      res.status(500).json({
-        message: error.message,
+      console.error("REJECT KYC ERROR:", error);
+  
+      return res.status(500).json({
+        success: false,
+        message: error.message || "Failed to reject KYC",
       });
     }
   };
+
+  
+  
+
   
 
 
@@ -2625,6 +2690,183 @@ exports.resetAdminPassword = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to reset password",
+    });
+  }
+};
+
+// ==========================================
+// GET PLATFORM FEE SETTINGS
+// ==========================================
+
+exports.getPlatformFeeSettings = async (req, res) => {
+  try {
+    let settings = await PlatformFeeSetting.findOne();
+
+    if (!settings) {
+      settings = await PlatformFeeSetting.create({
+        platformFeeRate: 0,
+        taxRate: 0,
+        updatedBy: req.user.id,
+      });
+    }
+
+    return res.json({
+      success: true,
+      settings,
+    });
+  } catch (error) {
+    console.error("GET PLATFORM FEE SETTINGS ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// ==========================================
+// UPDATE PLATFORM FEE SETTINGS
+// ==========================================
+
+exports.updatePlatformFeeSettings = async (req, res) => {
+  try {
+    const { platformFeeRate, taxRate } = req.body;
+
+    const feeRate = Number(platformFeeRate);
+    const tax = Number(taxRate);
+
+    if (
+      platformFeeRate === undefined ||
+      !Number.isFinite(feeRate) ||
+      feeRate < 0 ||
+      feeRate > 100
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Platform fee must be between 0 and 100",
+      });
+    }
+
+    if (
+      taxRate === undefined ||
+      !Number.isFinite(tax) ||
+      tax < 0 ||
+      tax > 100
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Tax rate must be between 0 and 100",
+      });
+    }
+
+    let settings = await PlatformFeeSetting.findOne();
+
+    if (!settings) {
+      settings = new PlatformFeeSetting();
+    }
+
+    settings.platformFeeRate = feeRate;
+    settings.taxRate = tax;
+    settings.updatedBy = req.user.id;
+
+    await settings.save();
+
+    return res.json({
+      success: true,
+      message: "Platform fee settings updated successfully",
+      settings,
+    });
+  } catch (error) {
+    console.error("UPDATE PLATFORM FEE SETTINGS ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// ======================================================
+// UPLOAD / UPDATE LATEST APK
+// ======================================================
+
+exports.uploadLatestApk = async (req, res) => {
+  try {
+    const { version, releaseNotes = "" } = req.body;
+
+    if (!version?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "App version is required",
+      });
+    }
+
+    if (!req.file?.path) {
+      return res.status(400).json({
+        success: false,
+        message: "Please select an APK file",
+      });
+    }
+
+    const apk = await AppVersion.findOneAndUpdate(
+      {},
+      {
+        version: version.trim(),
+        releaseNotes,
+        apkUrl: req.file.path,
+        fileName: req.file.originalname,
+        fileSize: req.file.size || 0,
+      },
+      {
+        new: true,
+        upsert: true,
+        runValidators: true,
+        setDefaultsOnInsert: true,
+      }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Latest APK uploaded successfully",
+      apk,
+    });
+  } catch (error) {
+    console.error("APK UPLOAD ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to upload APK",
+    });
+  }
+};
+
+// ======================================================
+// GET LATEST APK - PUBLIC
+// ======================================================
+
+exports.getLatestApk = async (req, res) => {
+  try {
+    const apk = await AppVersion.findOne().sort({
+      updatedAt: -1,
+    });
+
+    if (!apk) {
+      return res.status(404).json({
+        success: false,
+        message: "No APK has been uploaded yet",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      apk,
+    });
+  } catch (error) {
+    console.error("GET LATEST APK ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch latest APK",
     });
   }
 };

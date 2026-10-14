@@ -25,6 +25,16 @@
       enum: ["admin", "investor", "broker"],
       default: "investor",
     },
+
+    paymentStatus: {
+      type: String,
+      enum: ["pending", "paid"],
+      default: "pending",
+    },
+    paymentUpdatedAt: {
+      type: Date,
+      default: null,
+    },
   
     // 🔥 ADD THESE
     pan: String,

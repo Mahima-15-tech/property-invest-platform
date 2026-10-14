@@ -190,6 +190,31 @@ approvedAmount: {
       default: "Bank Transfer",
     },
 
+    platformFeeRate: {
+      type: Number,
+      default: 0,
+    },
+    
+    platformFeeAmount: {
+      type: Number,
+      default: 0,
+    },
+    
+    taxRate: {
+      type: Number,
+      default: 0,
+    },
+    
+    taxAmount: {
+      type: Number,
+      default: 0,
+    },
+    
+    totalPayable: {
+      type: Number,
+      default: 0,
+    },
+
     // ================= BROKER REFERRAL =================
 
 referredByBroker: {

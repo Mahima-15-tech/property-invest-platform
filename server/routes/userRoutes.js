@@ -4,6 +4,7 @@ const router = express.Router();
 const user = require("../controllers/userController");
 const protect = require("../middleware/authmiddleware");
 const { uploadSingle } = require("../middleware/upload");
+const { rejectKyc } = require("../controllers/adminController");
 
 router.post(
   "/kyc-upload",
@@ -24,12 +25,19 @@ router.post(
   user.toggleWatchlist
 );
 
+router.put(
+  "/investor/:id/phone",
+  protect,
+  user.updateInvestorPhone
+);
+
 router.get(
   "/watchlist",
   protect,
   user.getWatchlist
 );
 
+router.put("/kyc/:id/reject", protect, rejectKyc);
 // ==========================================
 // INVESTOR REFERRAL
 // ==========================================

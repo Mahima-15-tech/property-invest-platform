@@ -31,6 +31,11 @@ const commissionSchema = new mongoose.Schema({
     type: Number,
   },
 
+  paidAt: {
+    type: Date,
+    default: null,
+  },
+
   investmentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Investment",

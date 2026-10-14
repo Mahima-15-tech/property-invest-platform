@@ -19,14 +19,17 @@ const storage = new CloudinaryStorage({
     }
 
     // PDF / CSV
-    else if (
-      file.mimetype === "application/pdf" ||
-      file.mimetype === "text/csv" ||
-      file.originalname.toLowerCase().endsWith(".pdf") ||
-      file.originalname.toLowerCase().endsWith(".csv")
-    ) {
-      resourceType = "raw";
-    }
+   // PDF / CSV / APK
+else if (
+  file.mimetype === "application/pdf" ||
+  file.mimetype === "text/csv" ||
+  file.mimetype === "application/vnd.android.package-archive" ||
+  file.originalname.toLowerCase().endsWith(".pdf") ||
+  file.originalname.toLowerCase().endsWith(".csv") ||
+  file.originalname.toLowerCase().endsWith(".apk")
+) {
+  resourceType = "raw";
+}
 
     return {
       folder: req.uploadFolder || "properties",
@@ -34,6 +37,7 @@ const storage = new CloudinaryStorage({
     };
   },
 });
+
 
 // ======================================================
 // MULTER CONFIGURATION
@@ -43,7 +47,7 @@ const upload = multer({
   storage,
 
   limits: {
-    fileSize: 200 * 1024 * 1024,
+    fileSize: 200 * 1024 * 1024, // 200 MB
   },
 
   fileFilter: (req, file, cb) => {
@@ -54,7 +58,14 @@ const upload = multer({
     console.log("Ext  :", path.extname(file.originalname));
 
     const allowedExtensions =
-      /\.(jpg|jpeg|png|webp|svg|mp4|webm|mov|avi|pdf|csv)$/i;
+  /\.(jpg|jpeg|png|webp|svg|mp4|webm|mov|avi|pdf|csv|apk)$/i;
+
+  const isApk =
+  file.originalname.toLowerCase().endsWith(".apk") &&
+  [
+    "application/vnd.android.package-archive",
+    "application/octet-stream",
+  ].includes(file.mimetype);
 
     const extName = allowedExtensions.test(
       path.extname(file.originalname).toLowerCase()
@@ -84,7 +95,7 @@ const upload = multer({
     });
 
     if (
-      (isImage || isVideo || isPdf || isCsv) &&
+      (isImage || isVideo || isPdf || isCsv || isApk) &&
       extName
     ) {
       return cb(null, true);
@@ -97,11 +108,35 @@ const upload = multer({
 
     cb(
       new Error(
-        "Only images, videos, PDFs and CSV files are allowed"
+        "Only images, videos, PDFs, CSVs and APK files are allowed"
       )
     );
   },
 });
+
+// ======================================================
+// KYC DOCUMENT UPLOAD
+// ======================================================
+
+const uploadKycFile = upload.single("document");
+// ======================================================
+// CONTACT REQUEST MULTIPLE DOCUMENTS
+// ======================================================
+
+const uploadContactDocuments = (req, res, next) => {
+  upload.array("documents", 10)(req, res, (err) => {
+    if (err) {
+      console.error("CONTACT DOCUMENT UPLOAD ERROR:", err);
+
+      return res.status(400).json({
+        success: false,
+        message: err.message || "Document upload failed",
+      });
+    }
+
+    next();
+  });
+};
 
 // ======================================================
 // PROPERTY UPLOADS
@@ -246,6 +281,66 @@ const uploadBlogImage = (
 };
 
 // ======================================================
+// ADMIN KYC DOCUMENTS
+// ======================================================
+
+const uploadKycDocuments = (req, res, next) => {
+  req.uploadFolder = "kyc-documents";
+
+  upload.fields([
+    { name: "panFile", maxCount: 1 },
+    { name: "aadhaarFile", maxCount: 1 },
+    { name: "cancelCheque", maxCount: 1 },
+  ])(req, res, (err) => {
+    if (err) {
+      console.error("KYC DOCUMENT UPLOAD ERROR:", err);
+
+      return res.status(400).json({
+        success: false,
+        message: err.message || "KYC document upload failed",
+      });
+    }
+
+    // Multer should have parsed the multipart form
+    req.body = req.body || {};
+
+    next();
+  });
+};
+
+// ======================================================
+// ANDROID APK UPLOAD
+// ======================================================
+
+const uploadApk = (req, res, next) => {
+  req.uploadFolder = "mobile-app";
+
+  console.log("APK upload middleware reached");
+  console.log("Multer limit:", upload.limits?.fileSize);
+
+  upload.single("apk")(req, res, (err) => {
+    if (err) {
+      console.error("APK UPLOAD ERROR:", err);
+      console.error("Error code:", err.code);
+      console.error("Error message:", err.message);
+
+      return res.status(400).json({
+        success: false,
+        message: err.message || "APK upload failed",
+        code: err.code || null,
+      });
+    }
+
+    console.log("Multer upload complete");
+    console.log("Uploaded file:", req.file?.originalname);
+    console.log("Uploaded file size:", req.file?.size);
+
+    next();
+  });
+};
+
+
+// ======================================================
 // EXPORTS
 // ======================================================
 
@@ -256,4 +351,8 @@ module.exports = {
   uploadOwnershipPayment,
   uploadPaymentQR,
   uploadBlogImage,
+  uploadKycFile,
+  uploadContactDocuments,
+  uploadKycDocuments,
+  uploadApk,
 };

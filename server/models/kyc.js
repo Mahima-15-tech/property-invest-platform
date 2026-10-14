@@ -53,6 +53,19 @@ const kycSchema = new mongoose.Schema({
     default: 1,
   },
 
+    // KYC REJECTION DETAILS
+    rejectionType: {
+      type: String,
+      enum: ["contact_bank", "full_kyc"],
+      default: null,
+    },
+  
+    rejectionMessage: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
   // 🟢 FINAL STATUS
   status: {
     type: String,

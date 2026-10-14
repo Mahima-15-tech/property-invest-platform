@@ -75,18 +75,30 @@ app.use("/api/contact", contactRoutes);
 app.use("/api", profileRoutes);
 app.use("/api/ownership", ownershipRoutes);
 app.use("/api/blogs", blogRoutes);
+
 app.use(
   "/api/dashboard",
   dashboardRoutes
 );
+
+const legalPageRoutes = require("./routes/legalPageRoutes");
+app.use("/api/legal-pages", legalPageRoutes);
 
 // test route
 app.get("/test", (req, res) => {
   res.send("Working");
 });
 
+const notificationRoutes = require("./routes/notificationRoutes");
+
+app.use("/api/notifications", notificationRoutes);
+
+const appRoutes = require("./routes/appRoutes");
+
+app.use("/api/app", appRoutes);
+
 // 🔥 start server
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT || 8001;
 
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);

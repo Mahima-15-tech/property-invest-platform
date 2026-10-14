@@ -78,6 +78,28 @@ const sendOtpEmail = async (email, otp) => {
   });
 };
 
+
+const isDummyOtpEnabled = () =>
+  process.env.NODE_ENV !== "production" &&
+  process.env.ENABLE_DUMMY_OTP === "true";
+
+const deliverOtpEmail = async (email, otp) => {
+  try {
+    await sendOtpEmail(email, otp);
+    return true;
+  } catch (error) {
+    console.error("OTP EMAIL ERROR:", error.message);
+
+    // Email failure is tolerated only during explicitly
+    // enabled development testing.
+    if (isDummyOtpEnabled()) {
+      return false;
+    }
+
+    throw error;
+  }
+};
+
 // =====================================================
 // INVESTOR REFERRAL CODE
 // =====================================================
@@ -107,378 +129,310 @@ const generateReferralCode = async () => {
 // SEND OTP
 // =====================================================
 
+
+
 exports.sendOtp = async (req, res) => {
   try {
     const {
       email,
       role,
       name,
+      phone,
       mode,
       referralCode,
     } = req.body;
 
-    // =================================================
-    // VALIDATION
-    // =================================================
-
-    if (!email) {
+    if (!email || typeof email !== "string") {
       return res.status(400).json({
-        message: "Email is required",
+        message: "Valid email is required",
       });
     }
 
-    if (
-      !mode ||
-      !["signup", "login"].includes(mode)
-    ) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       return res.status(400).json({
-        message:
-          "Valid mode is required: signup or login",
+        message: "Please enter a valid email address",
       });
     }
 
-    const normalizedEmail =
-      email.toLowerCase().trim();
+    if (!["signup", "login"].includes(mode)) {
+      return res.status(400).json({
+        message: "Valid mode is required: signup or login",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
 
     let user = await User.findOne({
       email: normalizedEmail,
     });
 
-    // =================================================
-    // GENERATE REAL OTP
-    // =================================================
+    console.log("LOGIN DEBUG:", {
+      email: normalizedEmail,
+      requestedRole: role,
+      mode,
+      foundUser: user
+        ? {
+            id: user._id,
+            email: user.email,
+            role: user.role,
+            isApproved: user.isApproved,
+          }
+        : null,
+    });
 
-    const otp = generateOtp();
+    // Phone number is required for investor signup
+if (mode === "signup") {
+  const normalizedPhone = String(phone || "").trim();
 
-    // =================================================
-    // SIGNUP
-    // =================================================
+  if (!normalizedPhone) {
+    return res.status(400).json({
+      message: "Phone number is required",
+    });
+  }
 
+  if (!/^\+?[0-9]{10,15}$/.test(normalizedPhone)) {
+    return res.status(400).json({
+      message: "Please enter a valid phone number",
+    });
+  }
+}
+
+    // ================= SIGNUP =================
     if (mode === "signup") {
-
       if (user) {
         return res.status(400).json({
-          message:
-            "User already exists. Please login.",
+          message: "Email already registered. Please login.",
         });
       }
 
-      // ===============================================
-      // REFERRAL
-      // ===============================================
+      // Investor signup only.
+      // Brokers must use the separate broker registration API.
+      if (role && role !== "investor") {
+        return res.status(400).json({
+          message: "Invalid signup role",
+        });
+      }
 
       let referredBy = null;
       let referralCodeUsed = null;
 
-      if (
-        role === "investor" &&
-        referralCode
-      ) {
-
-        const referrer =
-          await User.findOne({
-            referralCode:
-              referralCode
-                .trim()
-                .toUpperCase(),
-
-            role: "investor",
-          });
+      // Validate investor referral code.
+      if (referralCode) {
+        const referrer = await User.findOne({
+          referralCode: referralCode.trim().toUpperCase(),
+          role: "investor",
+        });
 
         if (!referrer) {
           return res.status(400).json({
-            message:
-              "Invalid referral code",
+            message: "Invalid referral code",
           });
         }
 
-        // Prevent self referral
-        referredBy =
-          referrer._id;
-
-        referralCodeUsed =
-          referrer.referralCode;
+        referredBy = referrer._id;
+        referralCodeUsed = referrer.referralCode;
       }
 
-      // ===============================================
-      // GENERATE INVESTOR REFERRAL CODE
-      // ===============================================
-
-      const newReferralCode =
-        role === "investor"
-          ? await generateReferralCode()
-          : undefined;
-
-      // ===============================================
-      // CREATE USER
-      // ===============================================
+      const newReferralCode = await generateReferralCode();
+      const otp = generateOtp();
 
       user = await User.create({
-        email: normalizedEmail,
-
         name: name || "",
-
-        role: role || "investor",
-
-        referralCode:
-          newReferralCode,
-
+        email: normalizedEmail,
+        phone: String(phone).trim(),
+        role: "investor",
+        referralCode: newReferralCode,
         referredBy,
-
         referralCodeUsed,
-
         otp,
-
-        otpExpiry:
-          Date.now() +
-          5 * 60 * 1000,
+        otpExpiry: Date.now() + 5 * 60 * 1000,
       });
 
-      // ===============================================
-      // SEND REAL OTP EMAIL
-      // ===============================================
+      const emailSent = await deliverOtpEmail(normalizedEmail, otp);
 
-      await sendOtpEmail(
-        normalizedEmail,
-        otp
-      );
+      return res.status(200).json({
+        message: emailSent
+          ? "OTP sent successfully to your email"
+          : "Email delivery failed in testing mode. Use test OTP 123456.",
+        emailSent,
+        ...(isDummyOtpEnabled() ? { testOtpEnabled: true } : {}),
+      });
     }
 
-    // =================================================
-    // LOGIN
-    // =================================================
-
-    if (mode === "login") {
-
-      if (!user) {
-        return res.status(400).json({
-          message:
-            "User not found. Please signup first.",
-        });
-      }
-
-      if (
-        role &&
-        user.role !== role
-      ) {
-        return res.status(400).json({
-          message:
-            "Invalid login type",
-        });
-      }
-
-      // ===============================================
-      // GENERATE NEW OTP
-      // ===============================================
-
-      user.otp = otp;
-
-      user.otpExpiry =
-        Date.now() +
-        5 * 60 * 1000;
-
-      await user.save();
-
-      // ===============================================
-      // SEND REAL OTP EMAIL
-      // ===============================================
-
-      await sendOtpEmail(
-        normalizedEmail,
-        otp
-      );
-    }
-
-    // =================================================
-    // RESPONSE
-    // =================================================
-
-    return res.json({
-      message:
-        "OTP sent successfully to your email",
+    // ================= LOGIN =================
+   // ================= LOGIN =================
+if (mode === "login") {
+  if (!user) {
+    return res.status(400).json({
+      message: "User not found. Please signup first.",
     });
+  }
 
+  if (user.role !== "broker" && user.role !== "investor") {
+    return res.status(403).json({
+      message: "This account type cannot login here.",
+    });
+  }
+
+  if (role && user.role !== role) {
+    return res.status(400).json({
+      message: `This email is registered as ${user.role}. Please use the correct login page.`,
+      registeredRole: user.role,
+    });
+  }
+
+  // Pending brokers can receive OTP,
+  // but cannot access protected dashboard APIs.
+  const otp = generateOtp();
+
+  user.otp = otp;
+  user.otpExpiry = Date.now() + 5 * 60 * 1000;
+
+  await user.save();
+  const emailSent = await deliverOtpEmail(normalizedEmail, otp);
+
+return res.status(200).json({
+  message: emailSent
+    ? "OTP sent successfully to your email"
+    : "Email delivery failed in testing mode. Use test OTP 123456.",
+  emailSent,
+  ...(isDummyOtpEnabled() ? { testOtpEnabled: true } : {}),
+});
+}
+
+    return res.status(200).json({
+      message: "OTP sent successfully to your email",
+    });
   } catch (error) {
+    console.error("SEND OTP ERROR:", error);
 
-    console.error(
-      "SEND OTP ERROR:",
-      error
-    );
+    if (error.code === 11000) {
+      return res.status(400).json({
+        message: "This email is already registered",
+      });
+    }
 
     return res.status(500).json({
+      message: "Unable to send OTP",
       error: error.message,
     });
   }
 };
+
+
 
 // =====================================================
 // VERIFY OTP
 // =====================================================
 
+
 exports.verifyOtp = async (req, res) => {
   try {
-
-    const {
-      email,
-      otp,
-      role,
-    } = req.body;
-
-    // =================================================
-    // VALIDATION
-    // =================================================
+    const { email, otp, role } = req.body;
 
     if (!email || !otp) {
       return res.status(400).json({
-        message:
-          "Email and OTP are required",
+        message: "Email and OTP are required",
       });
     }
 
-    const normalizedEmail =
-      email.toLowerCase().trim();
+    const normalizedEmail = email.trim().toLowerCase();
+    const submittedOtp = String(otp).trim();
 
-    // =================================================
-    // FIND USER
-    // =================================================
-
-    const user =
-      await User.findOne({
-        email: normalizedEmail,
-      });
+    const user = await User.findOne({
+      email: normalizedEmail,
+    });
 
     if (!user) {
       return res.status(400).json({
-        message:
-          "User not found",
+        message: "User not found. Please signup first.",
       });
     }
 
-    // =================================================
-    // ROLE CHECK
-    // =================================================
+    // Role validation
+    if (role && user.role !== role) {
+      return res.status(400).json({
+        message: "Invalid login type",
+      });
+    }
 
+    // Enable dummy OTP only outside production
+    const dummyOtpEnabled =
+      process.env.NODE_ENV !== "production" &&
+      process.env.ENABLE_DUMMY_OTP === "true";
+
+    const isDummyOtp =
+      dummyOtpEnabled && submittedOtp === "123456";
+      console.log("DUMMY OTP DEBUG:", {
+        nodeEnv: process.env.NODE_ENV,
+        enableDummyOtp: process.env.ENABLE_DUMMY_OTP,
+        dummyOtpEnabled,
+        submittedOtp,
+        isDummyOtp,
+      });
+
+    // Real OTP must exist unless a valid dummy OTP is used
+    if (!isDummyOtp && (!user.otp || !user.otpExpiry)) {
+      return res.status(400).json({
+        message: "OTP not requested. Please request an OTP first.",
+      });
+    }
+
+    // Validate expiry for real OTP
     if (
-      role &&
-      user.role !== role
+      !isDummyOtp &&
+      new Date(user.otpExpiry).getTime() < Date.now()
     ) {
       return res.status(400).json({
-        message:
-          "Invalid login type",
+        message: "OTP expired. Please request a new OTP.",
       });
     }
 
-    // =================================================
-    // OTP EXISTS
-    // =================================================
-
-    if (!user.otp) {
+    // Validate real OTP OR accept enabled testing OTP
+    if (!isDummyOtp && String(user.otp) !== submittedOtp) {
       return res.status(400).json({
-        message:
-          "OTP not requested",
+        message: "Invalid OTP",
       });
     }
 
-    // =================================================
-    // OTP MATCH
-    // =================================================
-
-    if (
-      user.otp !==
-      otp.toString()
-    ) {
-      return res.status(400).json({
-        message:
-          "Invalid OTP",
-      });
-    }
-
-    // =================================================
-    // OTP EXPIRY
-    // =================================================
-
-    if (
-      !user.otpExpiry ||
-      user.otpExpiry < Date.now()
-    ) {
-      return res.status(400).json({
-        message:
-          "OTP expired",
-      });
-    }
-
-    // =================================================
-    // NEW USER CHECK
-    // =================================================
-
-    const isNewUser =
-      !user.isVerified;
-
-    // =================================================
-    // VERIFY USER
-    // =================================================
+    const isNewUser = !user.isVerified;
 
     user.isVerified = true;
-
     user.otp = null;
-
     user.otpExpiry = null;
 
     await user.save();
 
-    // =================================================
-    // JWT TOKEN
-    // =================================================
+    const token = jwt.sign(
+      {
+        id: user._id,
+        role: user.role,
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "7d",
+      }
+    );
 
-    const token =
-      jwt.sign(
-        {
-          id: user._id,
-          role: user.role,
-        },
-
-        process.env.JWT_SECRET,
-
-        {
-          expiresIn: "7d",
-        }
-      );
-
-    // =================================================
-    // RESPONSE
-    // =================================================
-
-    return res.json({
-
+    return res.status(200).json({
       message: isNewUser
         ? "Signup successful"
         : "Login successful",
-
       token,
-
       user,
-
-      type: isNewUser
-        ? "signup"
-        : "login",
-
+      type: isNewUser ? "signup" : "login",
       isNewUser,
-
       role: user.role,
     });
-
   } catch (error) {
-
-    console.error(
-      "VERIFY OTP ERROR:",
-      error
-    );
+    console.error("VERIFY OTP ERROR:", error);
 
     return res.status(500).json({
-      error: error.message,
+      message: "Unable to verify OTP",
     });
   }
 };
+
 
 // =====================================================
 // RESEND OTP
@@ -543,11 +497,15 @@ exports.resendOtp = async (
     // SEND EMAIL
     // =================================================
 
-    await sendOtpEmail(
-      normalizedEmail,
-      otp
-    );
+    const emailSent = await deliverOtpEmail(normalizedEmail, otp);
 
+    return res.json({
+      message: emailSent
+        ? "OTP resent successfully"
+        : "Email delivery failed in testing mode. Use test OTP 123456.",
+      emailSent,
+      ...(isDummyOtpEnabled() ? { testOtpEnabled: true } : {}),
+    });
     return res.json({
       message:
         "OTP resent successfully",

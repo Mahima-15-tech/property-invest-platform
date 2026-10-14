@@ -142,6 +142,12 @@ status: {
     // 🏊 AMENITIES
     amenities: [String],
 
+    // Admin ka likha hua Due Diligence / legal documents note
+dueDiligenceNote: {
+  type: String,
+  default: "",
+},
+
     // 📂 MEDIA
     media: {
       images: [String],
@@ -155,7 +161,22 @@ status: {
       ],
     },
 
-    
+
+dueDiligenceNote: {
+  type: String,
+  default: "",
+},
+
+// Editable legal document
+legalDocumentTitle: {
+  type: String,
+  default: "",
+},
+
+legalDocumentContent: {
+  type: String,
+  default: "",
+},
 
    
 

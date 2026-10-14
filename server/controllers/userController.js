@@ -1,7 +1,8 @@
 const User = require("../models/user");
 const Investment = require("../models/investment");
 const Property = require("../models/property");
-
+const KYC = require("../models/kyc");
+const Contact = require("../models/Contact");
 exports.uploadKyc = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -23,14 +24,43 @@ exports.uploadKyc = async (req, res) => {
 };
 
 
-exports.getKycStatus = async (req, res) => {
-  const user = await User.findById(req.user.id);
 
-  res.json({
-    kycStatus: user.kycStatus,
-    document: user.kycDocument,
-  });
+exports.getKycStatus = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const kyc = await KYC.findOne({ userId: user._id });
+
+    return res.status(200).json({
+      success: true,
+      kycStatus: user.kycStatus,
+      document: user.kycDocument,
+
+      // KYC rejection details
+      rejectionType: kyc?.rejectionType || null,
+      rejectionMessage: kyc?.rejectionMessage || "",
+
+      // Additional KYC information
+      status: kyc?.status || "draft",
+      approvalStatus: kyc?.approvalStatus || "pending",
+    });
+  } catch (error) {
+    console.error("GET KYC STATUS ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch KYC status",
+    });
+  }
 };
+
 
 
 // GET ALL INVESTORS (ADMIN)
@@ -183,22 +213,132 @@ exports.getAllInvestors = async (req, res) => {
 
 exports.updateKycStatus = async (req, res) => {
   try {
-    const { status } = req.body;
+    const {
+      status,
+      rejectionType,
+      rejectionMessage,
+    } = req.body;
+
+    const allowedStatuses = [
+      "pending",
+      "approved",
+      "rejected",
+    ];
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid KYC status",
+      });
+    }
 
     const user = await User.findById(req.params.id);
 
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const kyc = await KYC.findOne({
+      userId: user._id,
+    });
+
+    // Rejection requires a valid type and reason
+    if (status === "rejected") {
+      const allowedRejectionTypes = [
+        "contact_bank",
+        "full_kyc",
+      ];
+
+      if (!allowedRejectionTypes.includes(rejectionType)) {
+        return res.status(400).json({
+          success: false,
+          message: "Please select a valid rejection type",
+        });
+      }
+
+      if (
+        typeof rejectionMessage !== "string" ||
+        !rejectionMessage.trim()
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Rejection reason is required",
+        });
+      }
+
+      if (!kyc) {
+        return res.status(404).json({
+          success: false,
+          message: "KYC record not found",
+        });
+      }
+
+      kyc.rejectionType = rejectionType;
+      kyc.rejectionMessage = rejectionMessage.trim();
+    }
+
     user.kycStatus = status;
+
+    if (kyc) {
+      if (status === "approved") {
+        kyc.status = "approved";
+        kyc.approvalStatus = "approved";
+        kyc.rejectionType = null;
+        kyc.rejectionMessage = "";
+      } else if (status === "rejected") {
+        kyc.status = "rejected";
+        kyc.approvalStatus = "rejected";
+      } else if (status === "pending") {
+        kyc.status = "submitted";
+        kyc.approvalStatus = "pending";
+        kyc.rejectionType = null;
+        kyc.rejectionMessage = "";
+      }
+
+      await kyc.save();
+    }
 
     await user.save();
 
-    res.json({
+    // Sync related KYC support requests after final approval
+if (status === "approved") {
+  await Contact.updateMany(
+    {
+      userId: user._id,
+      type: { $in: ["contact_change", "bank_change"] },
+      status: { $in: ["pending", "in_progress", "rejected"] },
+    },
+    {
+      $set: {
+        status: "resolved",
+        adminRemark: "KYC details updated and approved successfully",
+        resolvedBy: req.user.id,
+        reviewedAt: new Date(),
+        resolvedAt: new Date(),
+      },
+    }
+  );
+}
+
+    return res.json({
+      success: true,
       message: `KYC ${status}`,
       user,
+      kyc,
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("UPDATE KYC STATUS ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to update KYC status",
+    });
   }
 };
+
 
 exports.getInvestorDetails = async (req, res) => {
   try {
@@ -397,18 +537,30 @@ exports.toggleWatchlist = async (req, res) => {
         message: "User not found",
       });
     }
-
-    const property = await Property.findById(propertyId);
-
+    const property = await Property.findOne({
+      _id: propertyId,
+      isDeleted: { $ne: true },
+    });
+    
     if (!property) {
       return res.status(404).json({
+        success: false,
         message: "Property not found",
       });
     }
-
+    
     const alreadySaved = user.watchlist.some(
       (id) => id.toString() === propertyId
     );
+    
+    // Unpublished property ko nayi watchlist entry mein add na karein.
+    // Existing saved property ko remove karne ki permission rahegi.
+    if (!property.isPublished && !alreadySaved) {
+      return res.status(404).json({
+        success: false,
+        message: "Property not found",
+      });
+    }
 
     if (alreadySaved) {
       user.watchlist = user.watchlist.filter(
@@ -446,8 +598,13 @@ exports.toggleWatchlist = async (req, res) => {
 exports.getWatchlist = async (req, res) => {
   try {
     const user = await User.findById(req.user.id)
-      .populate("watchlist");
-
+  .populate({
+    path: "watchlist",
+    match: {
+      isPublished: true,
+      isDeleted: { $ne: true },
+    },
+  });
     if (!user) {
       return res.status(404).json({
         message: "User not found",
@@ -539,6 +696,53 @@ exports.getMyReferralRewards = async (req, res) => {
     console.error("GET MY REFERRAL REWARDS ERROR:", error);
 
     res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// Update investor phone number (Admin only)
+exports.updateInvestorPhone = async (req, res) => {
+  try {
+    // Verify admin access
+    if (req.user?.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Only admin can update investor phone number",
+      });
+    }
+
+    const { phone } = req.body;
+
+    if (typeof phone !== "string" || !phone.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Phone number is required",
+      });
+    }
+
+    const investor = await User.findByIdAndUpdate(
+      req.params.id,
+      { $set: { phone: phone.trim() } },
+      { new: true, runValidators: true }
+    ).select("name email phone");
+
+    if (!investor) {
+      return res.status(404).json({
+        success: false,
+        message: "Investor not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Phone number updated successfully",
+      phone: investor.phone,
+      user: investor,
+    });
+  } catch (error) {
+    return res.status(500).json({
       success: false,
       message: error.message,
     });

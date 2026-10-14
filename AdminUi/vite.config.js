@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 import path from "path";
-import tailwindcss from "@tailwindcss/vite";
+import tailwindcss from '@tailwindcss/vite'
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
@@ -14,5 +14,5 @@ export default defineConfig({
 
   assetsInclude: ["**/*.svg", "**/*.csv"],
 
-  base: "/",   // 🔥 CHANGE THIS (./ ❌ → / ✅)
+  base: "/",   
 });

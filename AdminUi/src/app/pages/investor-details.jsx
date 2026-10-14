@@ -7,6 +7,8 @@ import { Input } from "../components/ui/input";
 import {
   getInvestorDetails,
   updateKyc,
+  updateKycDetails,
+  rejectKyc,
 } from "../../api/user";
 
 import {
@@ -474,6 +476,47 @@ export function InvestorDetails() {
     useState(null);
 
   // =====================================================
+  // KYC EDIT
+  // =====================================================
+
+  const [isEditingKyc, setIsEditingKyc] =
+    useState(false);
+
+    const [showKycRejectModal, setShowKycRejectModal] = useState(false);
+
+const [kycRejectionType, setKycRejectionType] = useState("");
+
+const [kycRejectionMessage, setKycRejectionMessage] = useState("");
+
+  const [kycForm, setKycForm] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    dob: "",
+    address: "",
+    panNumber: "",
+    aadhaarNumber: "",
+    nominee: {
+      name: "",
+      panNumber: "",
+      aadhaarNumber: "",
+      dob: "",
+    },
+    bank: {
+      beneficiaryName: "",
+      accountNumber: "",
+      ifsc: "",
+      branch: "",
+    },
+  });
+
+  const [kycFiles, setKycFiles] = useState({
+    panFile: null,
+    aadhaarFile: null,
+    cancelCheque: null,
+  });
+
+  // =====================================================
   // FETCH INVESTOR
   // =====================================================
 
@@ -575,22 +618,197 @@ export function InvestorDetails() {
   // =====================================================
 
   const handleKyc = async (status) => {
+    if (status === "rejected") {
+      setKycRejectionType("");
+      setKycRejectionMessage("");
+      setShowKycRejectModal(true);
+      return;
+    }
+  
     try {
       setActionLoading(`kyc-${status}`);
-
+  
       await updateKyc(id, status);
+  
+      toast.success(`KYC status updated to ${status}`);
+  
+      await refreshInvestor();
+    } catch (err) {
+      console.error("KYC UPDATE ERROR:", err);
+  
+      toast.error(
+        err.response?.data?.message || "Failed to update KYC"
+      );
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const submitKycRejection = async () => {
+    if (!kycRejectionType) {
+      toast.error("Please select a rejection type");
+      return;
+    }
+  
+    if (!kycRejectionMessage.trim()) {
+      toast.error("Please enter a rejection reason");
+      return;
+    }
+  
+    try {
+      setActionLoading("kyc-rejected");
+  
+      await rejectKyc(id, {
+        rejectionType: kycRejectionType,
+        rejectionMessage: kycRejectionMessage.trim(),
+      });
+  
+      toast.success("KYC rejected successfully");
+      setShowKycRejectModal(false);
+      setKycRejectionType("");
+      setKycRejectionMessage("");
+  
+      await refreshInvestor();
+    } catch (err) {
+      console.error("KYC REJECTION ERROR:", {
+        status: err.response?.status,
+        data: err.response?.data,
+        url: err.config?.url,
+      });
+  
+      toast.error(
+        err.response?.data?.message || "Failed to reject KYC"
+      );
+    } finally {
+      setActionLoading(null);
+    }
+  };
+  // =====================================================
+  // START KYC EDIT
+  // =====================================================
+
+  const startKycEdit = () => {
+    setKycForm({
+      fullName: kyc?.fullName || user?.name || "",
+      email: kyc?.email || user?.email || "",
+      phone: user.phone || "",
+      dob: kyc?.dob
+        ? new Date(kyc.dob)
+            .toISOString()
+            .split("T")[0]
+        : "",
+      address:
+        typeof kyc?.address === "string"
+          ? kyc.address
+          : formatAddress(kyc?.address) === "N/A"
+          ? ""
+          : formatAddress(kyc?.address),
+
+      panNumber: kyc?.panNumber || "",
+      aadhaarNumber: kyc?.aadhaarNumber || "",
+
+      nominee: {
+        name: kyc?.nominee?.name || "",
+        panNumber:
+          kyc?.nominee?.panNumber || "",
+        aadhaarNumber:
+          kyc?.nominee?.aadhaarNumber || "",
+        dob: kyc?.nominee?.dob
+          ? new Date(kyc.nominee.dob)
+              .toISOString()
+              .split("T")[0]
+          : "",
+      },
+
+      bank: {
+        beneficiaryName:
+          kyc?.bank?.beneficiaryName || "",
+        accountNumber:
+          kyc?.bank?.accountNumber || "",
+        ifsc: kyc?.bank?.ifsc || "",
+        branch: kyc?.bank?.branch || "",
+      },
+    });
+
+    setKycFiles({
+      panFile: null,
+      aadhaarFile: null,
+      cancelCheque: null,
+    });
+    setIsEditingKyc(true);
+  };
+
+  // =====================================================
+  // CANCEL KYC EDIT
+  // =====================================================
+
+  const cancelKycEdit = () => {
+    setIsEditingKyc(false);
+    setKycFiles({ panFile: null, aadhaarFile: null, cancelCheque: null });
+  };
+
+  // =====================================================
+  // SAVE KYC DETAILS
+  // =====================================================
+
+  const saveKycDetails = async () => {
+    try {
+      if (!kycForm.fullName.trim()) {
+        toast.error("Full name is required");
+        return;
+      }
+
+      if (!kycForm.email.trim()) {
+        toast.error("Email is required");
+        return;
+      }
+
+      setActionLoading("kyc-edit");
+
+      const formData = new FormData();
+      formData.append("fullName", kycForm.fullName.trim());
+      formData.append("email", kycForm.email.trim().toLowerCase());
+      formData.append("phone", (kycForm.phone || "").trim());
+      formData.append("dob", kycForm.dob || "");
+      formData.append("address", kycForm.address.trim());
+      formData.append("panNumber", kycForm.panNumber.trim().toUpperCase());
+      formData.append("aadhaarNumber", kycForm.aadhaarNumber.trim());
+      formData.append("nominee", JSON.stringify({
+        name: kycForm.nominee.name.trim(),
+        panNumber: kycForm.nominee.panNumber.trim().toUpperCase(),
+        aadhaarNumber: kycForm.nominee.aadhaarNumber.trim(),
+        dob: kycForm.nominee.dob || null,
+      }));
+      formData.append("bank", JSON.stringify({
+        beneficiaryName: kycForm.bank.beneficiaryName.trim(),
+        accountNumber: kycForm.bank.accountNumber.trim(),
+        ifsc: kycForm.bank.ifsc.trim().toUpperCase(),
+        branch: kycForm.bank.branch.trim(),
+      }));
+
+      if (kycFiles.panFile) formData.append("panFile", kycFiles.panFile);
+      if (kycFiles.aadhaarFile) formData.append("aadhaarFile", kycFiles.aadhaarFile);
+      if (kycFiles.cancelCheque) formData.append("cancelCheque", kycFiles.cancelCheque);
+
+      await updateKycDetails(id, formData);
 
       toast.success(
-        `KYC status updated to ${status}`
+        "KYC details updated successfully"
       );
+
+      setIsEditingKyc(false);
+      setKycFiles({ panFile: null, aadhaarFile: null, cancelCheque: null });
 
       await refreshInvestor();
     } catch (err) {
-      console.error(err);
+      console.error(
+        "UPDATE KYC DETAILS ERROR:",
+        err
+      );
 
       toast.error(
         err.response?.data?.message ||
-          "Failed to update KYC"
+          "Failed to update KYC details"
       );
     } finally {
       setActionLoading(null);
@@ -1261,7 +1479,9 @@ export function InvestorDetails() {
 
             <div className="space-y-6">
 
-              {/* KYC STATUS BANNER */}
+              {/* =================================================
+                  KYC STATUS / EDIT
+              ================================================= */}
 
               <section className="rounded-3xl border border-slate-200 bg-white p-5 md:p-6 shadow-sm">
 
@@ -1279,75 +1499,432 @@ export function InvestorDetails() {
                       </h2>
 
                       <p className="text-xs text-slate-400 mt-1">
-                        Review identity information and submitted documents.
+                        Review and manage investor identity information and submitted documents.
                       </p>
                     </div>
 
                   </div>
 
-                  <KycStatusBadge
-                    status={
-                      user.kycStatus
-                    }
-                  />
+                  <div className="flex items-center gap-2">
+
+                    <KycStatusBadge
+                      status={user.kycStatus}
+                    />
+
+                    {!isEditingKyc && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={startKycEdit}
+                        disabled={!!actionLoading}
+                        className="rounded-xl font-bold"
+                      >
+                        Edit KYC
+                      </Button>
+                    )}
+
+                  </div>
 
                 </div>
 
               </section>
 
 
-              {/* PERSONAL KYC */}
+              {/* =================================================
+                  PERSONAL KYC
+              ================================================= */}
 
               <section className="rounded-3xl border border-slate-200 bg-white p-5 md:p-6 shadow-sm">
 
                 <SectionHeader
                   icon={User}
                   title="Identity Information"
-                  description="Information submitted during KYC verification"
+                  description="Basic information submitted during KYC verification"
                 />
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {!isEditingKyc ? (
 
-                  <InfoItem
-                    icon={User}
-                    label="Legal Name"
-                    value={
-                      kyc.fullName
-                    }
-                  />
+                  <>
 
-                  <InfoItem
-                    icon={CalendarDays}
-                    label="Date of Birth"
-                    value={formatDate(
-                      kyc.dob
-                    )}
-                  />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
-                </div>
+                      <InfoItem
+                        icon={User}
+                        label="Legal Name"
+                        value={kyc.fullName}
+                      />
+
+                      <InfoItem
+                        icon={Mail}
+                        label="Email Address"
+                        value={kyc.email || user.email}
+                      />
+
+                      <InfoItem
+                        icon={CalendarDays}
+                        label="Date of Birth"
+                        value={formatDate(kyc.dob)}
+                      />
+
+                      <InfoItem
+                        icon={Phone}
+                        label="Phone Number"
+                        value={user.phone || "Not provided"}
+                      />
+
+                    </div>
 
 
-                {/* ADDRESS */}
+                    <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
 
-                <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                      <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-slate-400">
+                        <MapPin className="w-3.5 h-3.5" />
+                        Residential Address
+                      </div>
 
-                  <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-slate-400">
-                    <MapPin className="w-3.5 h-3.5" />
-                    Residential Address
+                      <p className="mt-2 text-sm font-semibold leading-6 text-slate-700">
+                        {formatAddress(kyc.address)}
+                      </p>
+
+                    </div>
+
+                  </>
+
+                ) : (
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500">
+                        Legal Name
+                      </label>
+
+                      <Input
+                        className="mt-1.5 h-11 rounded-xl"
+                        value={kycForm.fullName}
+                        onChange={(e) =>
+                          setKycForm((prev) => ({
+                            ...prev,
+                            fullName: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500">
+                        Email Address
+                      </label>
+
+                      <Input
+                        type="email"
+                        className="mt-1.5 h-11 rounded-xl"
+                        value={kycForm.email}
+                        onChange={(e) =>
+                          setKycForm((prev) => ({
+                            ...prev,
+                            email: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500">
+                        Phone Number
+                      </label>
+
+                      <Input
+                        type="tel"
+                        className="mt-1.5 h-11 rounded-xl"
+                        value={kycForm.phone}
+                        onChange={(e) =>
+                          setKycForm((prev) => ({
+                            ...prev,
+                            phone: e.target.value,
+                          }))
+                        }
+                        placeholder="Enter phone number"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500">
+                        Date of Birth
+                      </label>
+
+                      <Input
+                        type="date"
+                        className="mt-1.5 h-11 rounded-xl"
+                        value={kycForm.dob}
+                        onChange={(e) =>
+                          setKycForm((prev) => ({
+                            ...prev,
+                            dob: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+
+
+                    <div className="md:col-span-2">
+
+                      <label className="text-xs font-bold text-slate-500">
+                        Residential Address
+                      </label>
+
+                      <textarea
+                        className="mt-1.5 w-full min-h-28 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-slate-200"
+                        value={kycForm.address}
+                        onChange={(e) =>
+                          setKycForm((prev) => ({
+                            ...prev,
+                            address: e.target.value,
+                          }))
+                        }
+                      />
+
+                    </div>
+
                   </div>
 
-                  <p className="mt-2 text-sm font-semibold leading-6 text-slate-700">
-                    {formatAddress(
-                      kyc.address
-                    )}
-                  </p>
-
-                </div>
+                )}
 
               </section>
 
 
-              {/* DOCUMENTS */}
+              {/* =================================================
+                  IDENTITY DOCUMENT INFORMATION
+              ================================================= */}
+
+              <section className="rounded-3xl border border-slate-200 bg-white p-5 md:p-6 shadow-sm">
+
+                <SectionHeader
+                  icon={CreditCard}
+                  title="Identity Document Information"
+                  description="PAN and Aadhaar information submitted by the investor"
+                />
+
+                {!isEditingKyc ? (
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+                    <InfoItem
+                      icon={CreditCard}
+                      label="PAN Number"
+                      value={kyc.panNumber}
+                      mono
+                    />
+
+                    <InfoItem
+                      icon={FileText}
+                      label="Aadhaar Number"
+                      value={kyc.aadhaarNumber}
+                      mono
+                    />
+
+                  </div>
+
+                ) : (
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500">
+                        PAN Number
+                      </label>
+
+                      <Input
+                        className="mt-1.5 h-11 rounded-xl uppercase"
+                        value={kycForm.panNumber}
+                        onChange={(e) =>
+                          setKycForm((prev) => ({
+                            ...prev,
+                            panNumber:
+                              e.target.value.toUpperCase(),
+                          }))
+                        }
+                      />
+                    </div>
+
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500">
+                        Aadhaar Number
+                      </label>
+
+                      <Input
+                        className="mt-1.5 h-11 rounded-xl"
+                        value={kycForm.aadhaarNumber}
+                        onChange={(e) =>
+                          setKycForm((prev) => ({
+                            ...prev,
+                            aadhaarNumber:
+                              e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+
+                  </div>
+
+                )}
+
+              </section>
+
+
+              {/* =================================================
+                  NOMINEE
+              ================================================= */}
+
+              <section className="rounded-3xl border border-slate-200 bg-white p-5 md:p-6 shadow-sm">
+
+                <SectionHeader
+                  icon={User}
+                  title="Nominee Information"
+                  description="Registered nominee details"
+                />
+
+                {!isEditingKyc ? (
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+                    <InfoItem
+                      icon={User}
+                      label="Nominee Name"
+                      value={kyc.nominee?.name}
+                    />
+
+                    <InfoItem
+                      icon={CreditCard}
+                      label="Nominee PAN"
+                      value={kyc.nominee?.panNumber}
+                      mono
+                    />
+
+                    <InfoItem
+                      icon={FileText}
+                      label="Nominee Aadhaar"
+                      value={kyc.nominee?.aadhaarNumber}
+                      mono
+                    />
+
+                    <InfoItem
+                      icon={CalendarDays}
+                      label="Nominee Date of Birth"
+                      value={formatDate(
+                        kyc.nominee?.dob
+                      )}
+                    />
+
+                  </div>
+
+                ) : (
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500">
+                        Nominee Name
+                      </label>
+
+                      <Input
+                        className="mt-1.5 h-11 rounded-xl"
+                        value={kycForm.nominee.name}
+                        onChange={(e) =>
+                          setKycForm((prev) => ({
+                            ...prev,
+                            nominee: {
+                              ...prev.nominee,
+                              name: e.target.value,
+                            },
+                          }))
+                        }
+                      />
+                    </div>
+
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500">
+                        Nominee PAN
+                      </label>
+
+                      <Input
+                        className="mt-1.5 h-11 rounded-xl uppercase"
+                        value={
+                          kycForm.nominee.panNumber
+                        }
+                        onChange={(e) =>
+                          setKycForm((prev) => ({
+                            ...prev,
+                            nominee: {
+                              ...prev.nominee,
+                              panNumber:
+                                e.target.value.toUpperCase(),
+                            },
+                          }))
+                        }
+                      />
+                    </div>
+
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500">
+                        Nominee Aadhaar
+                      </label>
+
+                      <Input
+                        className="mt-1.5 h-11 rounded-xl"
+                        value={
+                          kycForm.nominee.aadhaarNumber
+                        }
+                        onChange={(e) =>
+                          setKycForm((prev) => ({
+                            ...prev,
+                            nominee: {
+                              ...prev.nominee,
+                              aadhaarNumber:
+                                e.target.value,
+                            },
+                          }))
+                        }
+                      />
+                    </div>
+
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500">
+                        Nominee Date of Birth
+                      </label>
+
+                      <Input
+                        type="date"
+                        className="mt-1.5 h-11 rounded-xl"
+                        value={kycForm.nominee.dob}
+                        onChange={(e) =>
+                          setKycForm((prev) => ({
+                            ...prev,
+                            nominee: {
+                              ...prev.nominee,
+                              dob: e.target.value,
+                            },
+                          }))
+                        }
+                      />
+                    </div>
+
+                  </div>
+
+                )}
+
+              </section>
+
+
+              {/* =================================================
+                  DOCUMENTS
+              ================================================= */}
 
               <section className="rounded-3xl border border-slate-200 bg-white p-5 md:p-6 shadow-sm">
 
@@ -1362,20 +1939,26 @@ export function InvestorDetails() {
                   <DocumentCard
                     icon={CreditCard}
                     title="PAN Card"
-                    description="Government identity document"
-                    file={
-                      kyc.panFile
+                    description={
+                      kyc.panNumber
+                        ? `PAN • ${kyc.panNumber}`
+                        : "Government identity document"
                     }
+                    file={kyc.panFile}
                   />
+
 
                   <DocumentCard
                     icon={FileText}
                     title="Aadhaar Card"
-                    description="Government identity document"
-                    file={
-                      kyc.aadhaarFile
+                    description={
+                      kyc.aadhaarNumber
+                        ? `Aadhaar • ${kyc.aadhaarNumber}`
+                        : "Government identity document"
                     }
+                    file={kyc.aadhaarFile}
                   />
+
 
                   <DocumentCard
                     icon={Landmark}
@@ -1387,17 +1970,63 @@ export function InvestorDetails() {
                           ).slice(-4)}`
                         : "Bank account document"
                     }
-                    file={
-                      bank.cancelCheque
-                    }
+                    file={bank.cancelCheque}
                   />
 
                 </div>
 
+                {isEditingKyc && (
+                  <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {[
+                      { key: "panFile", label: "Replace PAN Card", current: kyc.panFile },
+                      { key: "aadhaarFile", label: "Replace Aadhaar Card", current: kyc.aadhaarFile },
+                      { key: "cancelCheque", label: "Replace Cancelled Cheque", current: bank.cancelCheque },
+                    ].map((document) => (
+                      <div key={document.key} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <label className="block text-xs font-bold text-slate-600 mb-2">
+                          {document.label}
+                        </label>
+                        {document.current && (
+                          <a
+                            href={document.current}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mb-2 inline-block text-xs font-semibold text-blue-700 underline"
+                          >
+                            View current document
+                          </a>
+                        )}
+                        <input
+                          type="file"
+                          accept=".pdf,.png,.jpg,.jpeg,.webp"
+                          onChange={(event) => setKycFiles((previous) => ({
+                            ...previous,
+                            [document.key]: event.target.files?.[0] || null,
+                          }))}
+                          className="block w-full text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:font-semibold file:text-slate-700"
+                        />
+                        {kycFiles[document.key] && (
+                          <p className="mt-2 text-xs text-emerald-700 break-all">
+                            Selected: {kycFiles[document.key].name}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <p className="mt-3 text-[11px] text-slate-400">
+                  {isEditingKyc
+                    ? "Choose a replacement only for documents you want to change. Leave a file empty to keep the existing document."
+                    : "Existing uploaded documents can be viewed here."}
+                </p>
+
               </section>
 
 
-              {/* BANK DETAILS */}
+              {/* =================================================
+                  BANK DETAILS
+              ================================================= */}
 
               <section className="rounded-3xl border border-slate-200 bg-white p-5 md:p-6 shadow-sm">
 
@@ -1407,49 +2036,207 @@ export function InvestorDetails() {
                   description="Registered bank account information"
                 />
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {!isEditingKyc ? (
 
-                  <InfoItem
-                    icon={Landmark}
-                    label="Account Number"
-                    value={
-                      bank.accountNumber
-                        ? `•••• ${String(
-                            bank.accountNumber
-                          ).slice(-4)}`
-                        : "N/A"
-                    }
-                    mono
-                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
-                  <InfoItem
-                    icon={Hash}
-                    label="IFSC Code"
-                    value={
-                      bank.ifsc ||
-                      bank.ifscCode
-                    }
-                    mono
-                  />
+                    <InfoItem
+                      icon={User}
+                      label="Beneficiary Name"
+                      value={bank.beneficiaryName}
+                    />
 
-                  <InfoItem
-                    icon={Landmark}
-                    label="Bank Name"
-                    value={
-                      bank.bankName ||
-                      bank.name
-                    }
-                  />
+                    <InfoItem
+                      icon={Landmark}
+                      label="Account Number"
+                      value={bank.accountNumber}
+                      mono
+                    />
 
-                </div>
+                    <InfoItem
+                      icon={Hash}
+                      label="IFSC Code"
+                      value={bank.ifsc}
+                      mono
+                    />
+
+                    <InfoItem
+                      icon={Landmark}
+                      label="Branch"
+                      value={bank.branch}
+                    />
+
+                  </div>
+
+                ) : (
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500">
+                        Beneficiary Name
+                      </label>
+
+                      <Input
+                        className="mt-1.5 h-11 rounded-xl"
+                        value={
+                          kycForm.bank.beneficiaryName
+                        }
+                        onChange={(e) =>
+                          setKycForm((prev) => ({
+                            ...prev,
+                            bank: {
+                              ...prev.bank,
+                              beneficiaryName:
+                                e.target.value,
+                            },
+                          }))
+                        }
+                      />
+                    </div>
+
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500">
+                        Account Number
+                      </label>
+
+                      <Input
+                        className="mt-1.5 h-11 rounded-xl"
+                        value={
+                          kycForm.bank.accountNumber
+                        }
+                        onChange={(e) =>
+                          setKycForm((prev) => ({
+                            ...prev,
+                            bank: {
+                              ...prev.bank,
+                              accountNumber:
+                                e.target.value,
+                            },
+                          }))
+                        }
+                      />
+                    </div>
+
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500">
+                        IFSC Code
+                      </label>
+
+                      <Input
+                        className="mt-1.5 h-11 rounded-xl uppercase"
+                        value={kycForm.bank.ifsc}
+                        onChange={(e) =>
+                          setKycForm((prev) => ({
+                            ...prev,
+                            bank: {
+                              ...prev.bank,
+                              ifsc:
+                                e.target.value.toUpperCase(),
+                            },
+                          }))
+                        }
+                      />
+                    </div>
+
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500">
+                        Branch
+                      </label>
+
+                      <Input
+                        className="mt-1.5 h-11 rounded-xl"
+                        value={
+                          kycForm.bank.branch
+                        }
+                        onChange={(e) =>
+                          setKycForm((prev) => ({
+                            ...prev,
+                            bank: {
+                              ...prev.bank,
+                              branch: e.target.value,
+                            },
+                          }))
+                        }
+                      />
+                    </div>
+
+                  </div>
+
+                )}
 
               </section>
 
 
-              {/* KYC ACTIONS */}
+              {/* =================================================
+                  EDIT ACTIONS
+              ================================================= */}
 
-              {user.kycStatus ===
-                "pending" && (
+              {isEditingKyc && (
+
+                <section className="rounded-3xl border border-blue-200 bg-blue-50/60 p-5 md:p-6">
+
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+
+                    <div>
+
+                      <h3 className="font-extrabold text-blue-950">
+                        KYC details are being edited
+                      </h3>
+
+                      <p className="text-xs text-blue-800/70 mt-1">
+                        Review all changes carefully before saving.
+                      </p>
+
+                    </div>
+
+
+                    <div className="flex flex-wrap gap-2">
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={
+                          actionLoading === "kyc-edit"
+                        }
+                        onClick={cancelKycEdit}
+                        className="rounded-xl font-bold bg-white"
+                      >
+                        Cancel
+                      </Button>
+
+
+                      <Button
+                        type="button"
+                        disabled={
+                          actionLoading === "kyc-edit"
+                        }
+                        onClick={saveKycDetails}
+                        className="rounded-xl bg-slate-950 hover:bg-slate-800 text-white font-bold"
+                      >
+                        {actionLoading === "kyc-edit"
+                          ? "Saving..."
+                          : "Save KYC Changes"}
+                      </Button>
+
+                    </div>
+
+                  </div>
+
+                </section>
+
+              )}
+
+
+              {/* =================================================
+                  KYC ACTIONS
+              ================================================= */}
+
+              {!isEditingKyc &&
+                user.kycStatus === "pending" && (
 
                 <section className="rounded-3xl border border-amber-200 bg-amber-50/60 p-5 md:p-6">
 
@@ -1473,16 +2260,13 @@ export function InvestorDetails() {
 
                     </div>
 
+
                     <div className="flex gap-2">
 
                       <Button
-                        disabled={
-                          !!actionLoading
-                        }
+                        disabled={!!actionLoading}
                         onClick={() =>
-                          handleKyc(
-                            "approved"
-                          )
+                          handleKyc("approved")
                         }
                         className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
                       >
@@ -1494,17 +2278,14 @@ export function InvestorDetails() {
                           : "Approve KYC"}
                       </Button>
 
+
                       <Button
-                        disabled={
-                          !!actionLoading
-                        }
+                        disabled={!!actionLoading}
                         variant="destructive"
                         onClick={() =>
-                          handleKyc(
-                            "rejected"
-                          )
+                          handleKyc("rejected")
                         }
-                        className="rounded-xl font-bold"
+                        className="rounded-xl inline-flex items-center justify-center gap-2  bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-red-700 hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         <X className="w-4 h-4 mr-1.5" />
 
@@ -1521,6 +2302,83 @@ export function InvestorDetails() {
                 </section>
 
               )}
+
+```jsx
+{showKycRejectModal && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+      <h3 className="text-xl font-bold text-slate-900">
+        Reject KYC Verification
+      </h3>
+
+      <p className="mt-2 text-sm text-slate-500">
+        Select the rejection category and explain what the
+        investor needs to correct.
+      </p>
+
+      <div className="mt-5 space-y-4">
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-slate-700">
+            Rejection Type *
+          </label>
+
+          <select
+            value={kycRejectionType}
+            onChange={(e) => setKycRejectionType(e.target.value)}
+            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-red-200"
+          >
+            <option value="">Select rejection type</option>
+            <option value="contact_bank">Contact / Bank Details</option>
+            <option value="full_kyc">Full KYC</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-slate-700">
+            Reason for Rejection *
+          </label>
+
+          <textarea
+            value={kycRejectionMessage}
+            onChange={(e) => setKycRejectionMessage(e.target.value)}
+            rows={4}
+            maxLength={1000}
+            placeholder="Explain the issue and what the investor needs to correct..."
+            className="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:ring-2 focus:ring-red-200"
+          />
+
+          <p className="mt-1 text-right text-xs text-slate-400">
+            {kycRejectionMessage.length}/1000
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-6 flex justify-end gap-3">
+        <Button
+          type="button"
+          variant="outline"
+          disabled={!!actionLoading}
+          onClick={() => setShowKycRejectModal(false)}
+          className="rounded-xl"
+        >
+          Cancel
+        </Button>
+
+        <Button
+          type="button"
+          disabled={!!actionLoading}
+          onClick={submitKycRejection}
+          className="rounded-xl bg-red-600 text-white hover:bg-red-700"
+        >
+          {actionLoading === "kyc-rejected"
+            ? "Rejecting..."
+            : "Confirm Rejection"}
+        </Button>
+      </div>
+    </div>
+  </div>
+)}
+
 
             </div>
 
@@ -1627,11 +2485,25 @@ export function InvestorDetails() {
                           investment.amount ??
                           0;
 
-                        const approvedAmount =
-                          Number(shares) *
-                          Number(
-                            pricePerShare
-                          );
+                          const isInvestmentApproved =
+                          investment.status?.toLowerCase() === "approved";
+                        
+                        const isPaymentSubmitted =
+                          investment.paymentStatus?.toLowerCase() ===
+                          "payment_submitted";
+                        
+                        const isPaymentVerified =
+                          investment.paymentStatus?.toLowerCase() ===
+                          "verified";
+                        
+                        const approvedAmount = isInvestmentApproved
+                          ? Number(
+                              investment.approvedAmount ??
+                              investment.finalAmount ??
+                              (Number(investment.approvedShares ?? investment.shares ?? 0) *
+                                Number(pricePerShare))
+                            )
+                          : null;
 
                         const propertyImage =
                           getPropertyImage(
@@ -1832,19 +2704,45 @@ export function InvestorDetails() {
 
                                     </div>
 
-                                    <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-3">
+                                   
+<div
+  className={`rounded-xl border p-3 ${
+    isInvestmentApproved
+      ? "bg-emerald-50 border-emerald-100"
+      : "bg-amber-50 border-amber-100"
+  }`}
+>
+  <p
+    className={`text-[10px] uppercase tracking-wide font-bold ${
+      isInvestmentApproved
+        ? "text-emerald-600"
+        : "text-amber-700"
+    }`}
+  >
+    {isInvestmentApproved
+      ? "Approved Amount"
+      : "Investment Status"}
+  </p>
 
-                                      <p className="text-[10px] uppercase tracking-wide font-bold text-emerald-600">
-                                        Approved
-                                      </p>
+  <p
+    className={`text-sm font-extrabold mt-1 ${
+      isInvestmentApproved
+        ? "text-emerald-800"
+        : "text-amber-800"
+    }`}
+  >
+    {isInvestmentApproved
+      ? formatCurrency(approvedAmount)
+      : investment.paymentStatus?.toLowerCase() === "payment_submitted"
+        ? "Payment Submitted"
+        : investment.paymentStatus?.toLowerCase() === "verified"
+          ? "Awaiting Approval"
+          : investment.paymentStatus?.toLowerCase() === "rejected"
+            ? "Payment Rejected"
+            : "Payment Not Submitted"}
+  </p>
+</div>
 
-                                      <p className="text-sm font-extrabold text-emerald-800 mt-1">
-                                        {formatCurrency(
-                                          approvedAmount
-                                        )}
-                                      </p>
-
-                                    </div>
 
                                   </div>
 
@@ -2124,9 +3022,9 @@ export function InvestorDetails() {
                                       </p>
 
                                       <p className="text-lg font-extrabold text-emerald-800 mt-0.5">
-                                        {formatCurrency(
-                                          approvedAmount
-                                        )}
+                                      {isInvestmentApproved
+  ? formatCurrency(approvedAmount)
+  : "Not Approved Yet"}
                                       </p>
                                     </div>
 
@@ -2189,7 +3087,7 @@ export function InvestorDetails() {
                                               investment
                                             )
                                           }
-                                          className="rounded-xl font-bold"
+                                          className="rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold shadow-sm transition-all duration-200"
                                         >
                                           <X className="w-3.5 h-3.5 mr-1.5" />
 
@@ -2262,7 +3160,7 @@ export function InvestorDetails() {
                                               investment
                                             )
                                           }
-                                          className="rounded-xl font-bold"
+                                          className="rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold shadow-sm transition-all duration-200"
                                         >
                                           <X className="w-3.5 h-3.5 mr-1.5" />
 

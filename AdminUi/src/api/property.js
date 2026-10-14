@@ -2,7 +2,7 @@ import axios from "./axios";
 
 // CREATE
 export const createProperty = async (data) => {
-  const res = await axios.post("/properties/create", data);
+  const res = await axios.post("/properties/create", data, {timeout: 180000,});
   return res.data;
 };
 
@@ -39,4 +39,15 @@ export const getPropertiesList = () => axios.get("/properties/list");
 // DELETE
 export const deleteProperty = (id) => {
   return axios.delete(`/properties/${id}`);
+};
+
+export const togglePublish = (id, isPublished) => {
+  return axios.patch(`/properties/${id}/publish`, {
+    isPublished,
+  });
+};
+
+
+export const getAdminProperties = () => {
+  return axios.get("/properties/admin-list");
 };

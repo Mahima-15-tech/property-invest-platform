@@ -1,64 +1,79 @@
-import { createBrowserRouter } from "react-router-dom";
-import { RootLayout } from "./components/root-layout";
-import { Dashboard } from "./pages/dashboard";
-import { Properties } from "./pages/properties";
-import { DeletedProperties } from "./pages/DeletedProperties";
-import { PropertyCreate } from "./pages/property-create";
-import { Investors } from "./pages/investors";
-import { Brokers } from "./pages/brokers";
-import { Transactions } from "./pages/transactions";
-import { Reports } from "./pages/reports";
-import { CMS } from "./pages/cms";
-import { Notifications } from "./pages/notifications";
-import { Settings } from "./pages/settings";
-import { AuditLogs } from "./pages/audit-logs";
-import { NotFound } from "./pages/not-found";
-import { PropertyView } from "./pages/property-view";
-import { PropertyEdit } from "./pages/property-edit";
-import { Login } from "./pages/login";
-import ExitRequests from "./pages/exit-requests";
-import { UsersPage } from "./pages/users";
-import OwnershipRequests from "../app/pages/OwnershipRequests";
-import { ReferralProgram } from "../app/pages/ReferralProgram";
-import { InvestorDetails } from "./pages/investor-details";
+  import { createBrowserRouter } from "react-router-dom";
+  import { RootLayout } from "./components/root-layout";
+  import { Dashboard } from "./pages/dashboard";
+  import { Properties } from "./pages/properties";
+  import { DeletedProperties } from "./pages/DeletedProperties";
+  import { PropertyCreate } from "./pages/property-create";
+  import { Investors } from "./pages/investors";
+  import { Brokers } from "./pages/brokers";
+  import { Transactions } from "./pages/transactions";
+  import { Reports } from "./pages/reports";
+  import { CMS } from "./pages/cms";
+  import { Notifications } from "./pages/notifications";
+  import { Settings } from "./pages/settings";
+  import { AuditLogs } from "./pages/audit-logs";
+  import { NotFound } from "./pages/not-found";
+  import { PropertyView } from "./pages/property-view";
+  import { PropertyEdit } from "./pages/property-edit";
+  import { Login } from "./pages/login";
+  import ExitRequests from "./pages/exit-requests";
+  import { UsersPage } from "./pages/users";
+  import OwnershipRequests from "../app/pages/OwnershipRequests";
+  import { ReferralProgram } from "../app/pages/ReferralProgram";
+  import { InvestorDetails } from "./pages/investor-details";
+  import SupportRequests from "./pages/SupportRequests";
+  import BrokerDetails from "./pages/BrokerDetails";
+  import LegalPagesManagement from "./pages/LegalManagemntPage"
 
-export const router = createBrowserRouter([
-  {
-    path: "/login",
-    element: <Login />, // ✅ standalone page (no sidebar)
-  },
 
-  {
-    
-    path: "/",
-    element: <RootLayout />,
-    children: [
-      { index: true, element: <Dashboard /> },
+  export const router = createBrowserRouter([
+    {
+      path: "/login",
+      element: <Login />, // ✅ standalone page (no sidebar)
+    },
+
+    {
       
-      { path: "properties", element: <Properties /> },
-      { path: "properties/create", element: <PropertyCreate /> },
-      { path: "properties/view/:id", element: <PropertyView /> },
-      { path: "properties/edit/:id", element: <PropertyEdit /> },
-      {
-        path: "properties/deleted",
-        element: <DeletedProperties />,
-      },
-      { path: "investors", element: <Investors /> },
-      { path: "investors/:id", element: <InvestorDetails /> },
-      { path: "brokers", element: <Brokers /> },
-      { path: "referral-program", element: <ReferralProgram /> },
-      { path: "exit-requests", element: <ExitRequests /> },
-      { path: "transactions", element: <Transactions /> },
-      { path: "reports", element: <Reports /> },
-      { path: "cms", element: <CMS /> },
-      { path: "notifications", element: <Notifications /> },
-      { path: "settings", element: <Settings /> },
-      { path: "audit-logs", element: <AuditLogs /> },
-      { path: "*", element: <NotFound /> },
-      { path: "users", element: <UsersPage /> }, 
-      { path: "ownership", element: <OwnershipRequests /> }, 
+      path: "/",
+      element: <RootLayout />,
+      children: [
+        { index: true, element: <Dashboard /> },
+        
+        { path: "properties", element: <Properties /> },
+        { path: "properties/create", element: <PropertyCreate /> },
+        { path: "properties/view/:id", element: <PropertyView /> },
+        { path: "properties/edit/:id", element: <PropertyEdit /> },
+        {
+          path: "properties/deleted",
+          element: <DeletedProperties />,
+        },
+        { path: "investors", element: <Investors /> },
+        { path: "investors/:id", element: <InvestorDetails /> },
+        { path: "brokers", element: <Brokers /> },
+        { path: "referral-program", element: <ReferralProgram /> },
+        { path: "exit-requests", element: <ExitRequests /> },
+        { path: "transactions", element: <Transactions /> },
+        { path: "reports", element: <Reports /> },
+        { path: "cms", element: <CMS /> },
+        { path: "notifications", element: <Notifications /> },
+        { path: "settings", element: <Settings /> },
+        { path: "audit-logs", element: <AuditLogs /> },
+        
+        { path: "users", element: <UsersPage /> }, 
+        { path: "ownership", element: <OwnershipRequests /> }, 
+        {
+          path: "support-requests",
+          element: <SupportRequests />,
+        },
+        {
+          path: "/brokers/:id",
+          element: <BrokerDetails />,
+        },
+        { path: "legal-pages", element: <LegalPagesManagement />},
 
-      
-    ],
-  },
-]);
+        { path: "*", element: <NotFound /> },
+
+        
+      ],
+    },
+  ]);

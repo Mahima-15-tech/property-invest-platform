@@ -632,7 +632,7 @@ export function Transactions() {
               onClick={() =>
                 setOpen(true)
               }
-              className="h-10 gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 shadow-sm"
+              className="h-10 gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white shadow-sm"
             >
               <Plus className="h-4 w-4" />
 
@@ -1033,7 +1033,7 @@ export function Transactions() {
           setSelectedTransaction(null)
         }
       >
-        <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-2xl">
+        <DialogContent className="max-w-2xl p-0 overflow-hidden bg-white rounded-2xl">
 
           {selectedTransaction && (
             <>
@@ -1287,7 +1287,7 @@ export function Transactions() {
         open={open}
         onOpenChange={setOpen}
       >
-        <DialogContent className="max-w-lg p-0 overflow-hidden rounded-2xl">
+        <DialogContent className="max-w-lg p-0 bg-white overflow-hidden rounded-2xl">
 
           {/* HEADER */}
 
@@ -1491,16 +1491,16 @@ export function Transactions() {
                   handleAddTransaction
                 }
                 disabled={saving}
-                className="rounded-xl bg-slate-900 hover:bg-slate-800 min-w-[130px]"
+                className="rounded-xl bg-slate-900 text-white hover:bg-slate-800 min-w-[130px]"
               >
                 {saving ? (
                   <>
-                    <span className="h-3.5 w-3.5 rounded-full border-2 border-white border-t-transparent animate-spin mr-2" />
+                    <span className="h-3.5 w-3.5 rounded-full text-white border-2 border-white border-t-transparent animate-spin mr-2" />
                     Saving...
                   </>
                 ) : (
                   <>
-                    <Plus className="h-4 w-4 mr-1.5" />
+                    <Plus className="h-4 w-4 mr-1.5 " />
                     Save Transaction
                   </>
                 )}

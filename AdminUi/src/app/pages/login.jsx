@@ -28,7 +28,7 @@ export function Login() {
   const [loading, setLoading] = useState(false);
 
   // Temporary dummy OTP for testing
-  const [dummyOtp, setDummyOtp] = useState("");
+ 
 
   // ==========================================
   // LOGIN
@@ -67,41 +67,28 @@ export function Login() {
       toast.error("Please enter your email");
       return;
     }
-
+  
     try {
       setLoading(true);
-
+  
       const res = await axios.post(
         "/admin/forgot-password",
         {
           email,
         }
       );
-
-      // TEMPORARY DUMMY OTP
-      if (res.data?.otp) {
-        setDummyOtp(res.data.otp);
-
-        console.log(
-          "DUMMY PASSWORD RESET OTP:",
-          res.data.otp
-        );
-
-        toast.success(
-          `OTP Generated: ${res.data.otp}`
-        );
-      } else {
-        toast.success(
-          "OTP generated successfully"
-        );
-      }
-
+  
+      toast.success(
+        res.data?.message ||
+          "OTP sent successfully to your email"
+      );
+  
       setStep("otp");
-
+  
     } catch (err) {
       toast.error(
         err.response?.data?.message ||
-          "Failed to generate OTP"
+          "Failed to send OTP"
       );
     } finally {
       setLoading(false);
@@ -184,7 +171,7 @@ export function Login() {
       setOtp("");
       setNewPassword("");
       setConfirmPassword("");
-      setDummyOtp("");
+      
 
       // Back to login
       setStep("login");
@@ -209,7 +196,7 @@ export function Login() {
     setOtp("");
     setNewPassword("");
     setConfirmPassword("");
-    setDummyOtp("");
+    
   };
 
   // ==========================================
@@ -360,22 +347,12 @@ export function Login() {
             </h2>
 
             <p className="text-center text-sm text-gray-400 mb-6">
-              Enter the 6-digit OTP generated for your account.
-            </p>
+  Enter the 6-digit OTP sent to your email.
+</p>
 
             {/* TEMPORARY DUMMY OTP DISPLAY */}
 
-            {dummyOtp && (
-              <div className="mb-4 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-center">
-                <p className="text-xs text-yellow-300">
-                  Testing OTP
-                </p>
-
-                <p className="text-xl font-bold tracking-[6px] text-yellow-400 mt-1">
-                  {dummyOtp}
-                </p>
-              </div>
-            )}
+         
 
             <div className="space-y-4">
 

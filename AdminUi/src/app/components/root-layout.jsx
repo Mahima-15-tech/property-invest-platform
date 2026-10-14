@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   Sparkles,
   Command,
+  LifeBuoy,
 } from "lucide-react";
 
 import { Button } from "./ui/button";
@@ -46,6 +47,12 @@ const navigation = [
     icon: Gift 
   },
   { name: "Ownership Request", href: "/ownership", icon: Briefcase },
+  {
+    name: "Support Requests",
+    href: "/support-requests",
+    icon: LifeBuoy,
+  },
+
 
   { name: "Transactions", href: "/transactions", icon: CreditCard },
   { name: "Exit Requests", href: "/exit-requests", icon: LogOut },
